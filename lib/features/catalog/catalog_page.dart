@@ -73,6 +73,47 @@ class _CatalogPageState extends State<CatalogPage> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Servicio guardado en catálogo.')));
   }
 
+  Future<void> _deleteService(Map<String, Object?> row) async {
+    final code = '${row['code'] ?? ''}';
+    final usedInAppointments = await AppDatabase.instance.queryWhere(
+      'appointments',
+      where: 'service_code = ?',
+      whereArgs: <Object?>[code],
+      limit: 1,
+    );
+    final usedInRecords = await AppDatabase.instance.queryWhere(
+      'service_records',
+      where: 'service_code = ?',
+      whereArgs: <Object?>[code],
+      limit: 1,
+    );
+    if (usedInAppointments.isNotEmpty || usedInRecords.isNotEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se puede eliminar porque el servicio ya tiene historial.')),
+      );
+      return;
+    }
+    final approved = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Eliminar servicio'),
+            content: Text('¿Eliminar ${row['name']} del catálogo?'),
+            actions: <Widget>[
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Eliminar')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!approved) return;
+    await AppDatabase.instance.delete('service_catalog', where: 'code = ?', whereArgs: <Object?>[code]);
+    AppSyncBus.bump();
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Servicio eliminado del catálogo.')));
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppShell(
@@ -111,8 +152,23 @@ class _CatalogPageState extends State<CatalogPage> {
           ..._items.map((row) => Card(
             child: ListTile(
               title: Text('${row['name']}'),
-              subtitle: Text('Código: ${row['code']} • ${row['duration_minutes'] ?? 45} min • ${row['commission_percent'] ?? 0}%'),
-              trailing: Text(copCurrency.format((row['base_price'] as num).toDouble())),
+              subtitle: Text(
+                'Código: ${row['code']} • ${row['duration_minutes'] ?? 45} min • ${row['commission_percent'] ?? 0}%\n'
+                '${(row['description'] ?? '').toString().isEmpty ? 'Sin descripción' : row['description']}',
+              ),
+              isThreeLine: true,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(copCurrency.format((row['base_price'] as num).toDouble())),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Eliminar servicio',
+                    onPressed: () => _deleteService(row),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
             ),
           )),
         ],

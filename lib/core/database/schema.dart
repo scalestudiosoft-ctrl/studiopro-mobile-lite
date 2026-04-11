@@ -1,4 +1,11 @@
 const List<String> appSchema = <String>[
+
+  '''
+  CREATE TABLE IF NOT EXISTS app_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )
+  ''',
   '''
   CREATE TABLE IF NOT EXISTS business_profile (
     business_id TEXT PRIMARY KEY,

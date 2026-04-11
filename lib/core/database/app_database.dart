@@ -51,16 +51,24 @@ class AppDatabase {
 
   Future<void> _seedCatalog() async {
     final db = await database;
+    final seeded = await db.query('app_meta', where: 'key = ?', whereArgs: <Object?>['catalog_seeded'], limit: 1);
+    if (seeded.isNotEmpty) return;
     final existing = await db.query('service_catalog', limit: 1);
-    if (existing.isNotEmpty) return;
-    final items = <ServiceCatalogItem>[
-      const ServiceCatalogItem(code: 'SRV-CORTE', name: 'Corte clásico', basePrice: 25000, durationMinutes: 45, commissionPercent: 50, description: 'Servicio base de corte.'),
-      const ServiceCatalogItem(code: 'SRV-BARBA', name: 'Barba', basePrice: 15000, durationMinutes: 20, commissionPercent: 50, description: 'Perfilado y arreglo de barba.'),
-      const ServiceCatalogItem(code: 'SRV-CORTE-BARBA', name: 'Corte + barba', basePrice: 35000, durationMinutes: 60, commissionPercent: 50, description: 'Combo de corte y barba.'),
-    ];
-    for (final item in items) {
-      await db.insert('service_catalog', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    if (existing.isEmpty) {
+      final items = <ServiceCatalogItem>[
+        const ServiceCatalogItem(code: 'SRV-CORTE', name: 'Corte clásico', basePrice: 25000, durationMinutes: 45, commissionPercent: 50, description: 'Servicio base de corte.'),
+        const ServiceCatalogItem(code: 'SRV-BARBA', name: 'Barba', basePrice: 15000, durationMinutes: 20, commissionPercent: 50, description: 'Perfilado y arreglo de barba.'),
+        const ServiceCatalogItem(code: 'SRV-CORTE-BARBA', name: 'Corte + barba', basePrice: 35000, durationMinutes: 60, commissionPercent: 50, description: 'Combo de corte y barba.'),
+      ];
+      for (final item in items) {
+        await db.insert('service_catalog', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
     }
+    await db.insert(
+      'app_meta',
+      <String, Object?>{'key': 'catalog_seeded', 'value': '1'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<int> insert(String table, Map<String, Object?> values) async {
