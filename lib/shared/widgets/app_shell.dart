@@ -22,10 +22,36 @@ class AppShell extends StatelessWidget {
         title: Text(title),
         actions: <Widget>[
           ...?actions,
-          IconButton(
-            tooltip: 'Configuración',
-            onPressed: () => context.push('/settings'),
-            icon: const Icon(Icons.settings_outlined),
+          PopupMenuButton<String>(
+            tooltip: 'Atajos',
+            onSelected: (value) {
+              switch (value) {
+                case 'clients':
+                  context.push('/clients');
+                  break;
+                case 'workers':
+                  context.push('/workers');
+                  break;
+                case 'catalog':
+                  context.push('/catalog');
+                  break;
+                case 'exports':
+                  context.push('/exports');
+                  break;
+                case 'settings':
+                  context.push('/settings');
+                  break;
+              }
+            },
+            itemBuilder: (context) => const <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(value: 'clients', child: Text('Clientes')),
+              PopupMenuItem<String>(value: 'workers', child: Text('Profesionales')),
+              PopupMenuItem<String>(value: 'catalog', child: Text('Catálogo')),
+              PopupMenuDivider(),
+              PopupMenuItem<String>(value: 'exports', child: Text('Historial de cierres')),
+              PopupMenuItem<String>(value: 'settings', child: Text('Configuración')),
+            ],
+            icon: const Icon(Icons.more_vert),
           ),
         ],
       ),

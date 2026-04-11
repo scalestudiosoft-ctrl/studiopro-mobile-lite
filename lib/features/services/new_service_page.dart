@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/services/daily_operation_validator.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
@@ -36,7 +37,18 @@ class _NewServicePageState extends State<NewServicePage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   @override
@@ -180,10 +192,11 @@ class _NewServicePageState extends State<NewServicePage> {
         }
       }
       if (!mounted) return;
-      _showMessage('Servicio registrado correctamente.');
+      _showMessage('Servicio registrado correctamente. Venta y caja actualizadas.');
       _appointmentId = null;
       _priceController.clear();
       _notesController.clear();
+      AppSyncBus.bump();
       await _load();
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -262,6 +275,7 @@ class _NewServicePageState extends State<NewServicePage> {
       where: 'service_record_id = ?',
       whereArgs: <Object?>[record['id']],
     );
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -280,6 +294,7 @@ class _NewServicePageState extends State<NewServicePage> {
     if (confirm != true) return;
     await AppDatabase.instance.delete('sales', where: 'service_record_id = ?', whereArgs: <Object?>[record['id']]);
     await AppDatabase.instance.delete('service_records', where: 'id = ?', whereArgs: <Object?>[record['id']]);
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -343,6 +358,23 @@ class _NewServicePageState extends State<NewServicePage> {
               ),
             ),
           ],
+          const SizedBox(height: 12),
+          if (_clients.isEmpty || _workers.isEmpty || _services.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    if (_workers.isEmpty) ActionChip(label: const Text('Crear profesional'), onPressed: () => context.push('/workers')),
+                    if (_clients.isEmpty) ActionChip(label: const Text('Crear cliente'), onPressed: () => context.push('/clients')),
+                    if (_services.isEmpty) ActionChip(label: const Text('Crear servicio'), onPressed: () => context.push('/catalog')),
+                    ActionChip(label: const Text('Abrir caja'), onPressed: () => context.push('/cash')),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           Card(
             child: Padding(

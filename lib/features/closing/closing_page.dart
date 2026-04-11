@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/app_sync_bus.dart';
 import '../../core/services/closing_export_service.dart';
 import '../../core/services/daily_operation_validator.dart';
 import '../../core/utils/formatters.dart';
@@ -25,7 +26,18 @@ class _ClosingPageState extends State<ClosingPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _loadSummary();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _loadSummary();
   }
 
   Future<void> _loadSummary() async {
@@ -46,6 +58,7 @@ class _ClosingPageState extends State<ClosingPage> {
       final file = await _closingExportService.exportTodayClose(notes: _notesController.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('JSON generado en ${file.path}')));
+      AppSyncBus.bump();
       await _loadSummary();
       if (!mounted) return;
       context.go('/exports');
@@ -64,6 +77,7 @@ class _ClosingPageState extends State<ClosingPage> {
     try {
       await _closingExportService.shareCloseFile(notes: _notesController.text.trim());
       if (!mounted) return;
+      AppSyncBus.bump();
       await _loadSummary();
       if (!mounted) return;
       context.go('/exports');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../shared/widgets/app_shell.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -22,7 +24,18 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -59,6 +72,7 @@ class _SettingsPageState extends State<SettingsPage> {
       whereArgs: <Object?>[_profile!['business_id']],
     );
     if (!mounted) return;
+    AppSyncBus.bump();
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configuración guardada.')));
     await _load();
   }
@@ -98,12 +112,23 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const <Widget>[
-                  Text('Accesos', style: TextStyle(fontWeight: FontWeight.w600)),
-                  SizedBox(height: 8),
-                  Text('Usa Catálogo de servicios para mantener precios base y usar esos mismos datos al exportar el cierre.'),
-                  SizedBox(height: 8),
-                  Text('Configura aquí el Business ID real del negocio para que el JSON salga listo para importar en escritorio.'),
+                children: <Widget>[
+                  const Text('Accesos', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  const Text('Usa Catálogo de servicios para mantener precios base y usar esos mismos datos al exportar el cierre.'),
+                  const SizedBox(height: 8),
+                  const Text('Configura aquí el Business ID real del negocio para que el JSON salga listo para importar en escritorio.'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      ActionChip(label: const Text('Profesionales'), onPressed: () => context.push('/workers')),
+                      ActionChip(label: const Text('Clientes'), onPressed: () => context.push('/clients')),
+                      ActionChip(label: const Text('Catálogo'), onPressed: () => context.push('/catalog')),
+                      ActionChip(label: const Text('Historial de cierres'), onPressed: () => context.push('/exports')),
+                    ],
+                  ),
                 ],
               ),
             ),

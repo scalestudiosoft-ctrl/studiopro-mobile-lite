@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
 
@@ -28,7 +29,18 @@ class _AgendaPageState extends State<AgendaPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -69,7 +81,10 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   Future<void> _saveAppointment() async {
-    if (_selectedClientId == null) return;
+    if (_selectedClientId == null || _selectedServiceCode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente y servicio son obligatorios.')));
+      return;
+    }
     final client = _clients.firstWhere((row) => '${row['id']}' == _selectedClientId);
     Map<String, Object?>? worker;
     for (final row in _workers) {
@@ -98,6 +113,7 @@ class _AgendaPageState extends State<AgendaPage> {
       'notes': _notesController.text.trim(),
     });
     _notesController.clear();
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -108,6 +124,7 @@ class _AgendaPageState extends State<AgendaPage> {
       where: 'id = ?',
       whereArgs: <Object?>[row['id']],
     );
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -196,6 +213,7 @@ class _AgendaPageState extends State<AgendaPage> {
       where: 'id = ?',
       whereArgs: <Object?>[row['id']],
     );
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -213,6 +231,7 @@ class _AgendaPageState extends State<AgendaPage> {
     );
     if (confirm != true) return;
     await AppDatabase.instance.delete('appointments', where: 'id = ?', whereArgs: <Object?>[row['id']]);
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -278,6 +297,19 @@ class _AgendaPageState extends State<AgendaPage> {
                 ),
               ),
             ),
+
+            if (_clients.isEmpty || _workers.isEmpty || _services.isEmpty) ...<Widget>[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  if (_clients.isEmpty) ActionChip(label: const Text('Crear cliente'), onPressed: () => context.push('/clients')),
+                  if (_workers.isEmpty) ActionChip(label: const Text('Crear profesional'), onPressed: () => context.push('/workers')),
+                  if (_services.isEmpty) ActionChip(label: const Text('Crear servicio'), onPressed: () => context.push('/catalog')),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             Text('Citas del día', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
 
@@ -20,7 +21,18 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -40,6 +52,7 @@ class _CatalogPageState extends State<CatalogPage> {
     _codeController.clear();
     _nameController.clear();
     _priceController.clear();
+    AppSyncBus.bump();
     await _load();
   }
 

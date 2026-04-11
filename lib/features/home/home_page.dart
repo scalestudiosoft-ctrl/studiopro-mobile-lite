@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/services/closing_export_service.dart';
 import '../../core/services/daily_operation_validator.dart';
 import '../../core/utils/formatters.dart';
@@ -29,7 +30,18 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -113,6 +125,9 @@ class _HomePageState extends State<HomePage> {
                         OutlinedButton.icon(onPressed: () => context.go('/agenda'), icon: const Icon(Icons.event_note), label: const Text('Agenda')),
                         OutlinedButton.icon(onPressed: () => context.go('/cash'), icon: const Icon(Icons.payments), label: const Text('Caja')),
                         OutlinedButton.icon(onPressed: () => context.go('/closing'), icon: const Icon(Icons.task_alt), label: const Text('Cerrar día')),
+                        OutlinedButton.icon(onPressed: () => context.push('/workers'), icon: const Icon(Icons.badge_outlined), label: const Text('Profesionales')),
+                        OutlinedButton.icon(onPressed: () => context.push('/clients'), icon: const Icon(Icons.people_outline), label: const Text('Clientes')),
+                        OutlinedButton.icon(onPressed: () => context.push('/catalog'), icon: const Icon(Icons.content_cut_outlined), label: const Text('Servicios')),
                       ],
                     ),
                   ],
@@ -125,10 +140,31 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const <Widget>[
-                    Text('Siguiente paso recomendado', style: TextStyle(fontWeight: FontWeight.w600)),
-                    SizedBox(height: 8),
-                    Text('Primero abre caja, luego registra servicios, después revisa el cierre y exporta el JSON por WhatsApp.'),
+                  children: <Widget>[
+                    const Text('Flujo correcto del día', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '1. Configura negocio, profesionales, clientes y catálogo.
+'
+                      '2. Abre caja.
+'
+                      '3. Registra citas o servicios.
+'
+                      '4. Cada servicio debe facturar a un cliente, quedar ligado a un profesional y afectar ventas/caja.
+'
+                      '5. Revisa el cierre y exporta el JSON por WhatsApp.',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        ActionChip(label: const Text('Configurar negocio'), onPressed: () => context.push('/settings')),
+                        ActionChip(label: const Text('Crear profesional'), onPressed: () => context.push('/workers')),
+                        ActionChip(label: const Text('Crear cliente'), onPressed: () => context.push('/clients')),
+                        ActionChip(label: const Text('Abrir caja'), onPressed: () => context.go('/cash')),
+                      ],
+                    ),
                   ],
                 ),
               ),

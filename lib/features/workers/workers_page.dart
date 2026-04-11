@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
 
@@ -22,7 +23,18 @@ class _WorkersPageState extends State<WorkersPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -60,6 +72,7 @@ class _WorkersPageState extends State<WorkersPage> {
     _nameController.clear();
     _phoneController.clear();
     _commissionController.text = '40';
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -105,6 +118,7 @@ class _WorkersPageState extends State<WorkersPage> {
       where: 'id = ?',
       whereArgs: <Object?>[worker['id']],
     );
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -132,6 +146,7 @@ class _WorkersPageState extends State<WorkersPage> {
     );
     if (confirm != true) return;
     await AppDatabase.instance.delete('workers', where: 'id = ?', whereArgs: <Object?>[worker['id']]);
+    AppSyncBus.bump();
     await _load();
   }
 

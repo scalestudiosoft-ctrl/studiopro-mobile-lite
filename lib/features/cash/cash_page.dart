@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/database/app_database.dart';
+import '../../core/services/app_sync_bus.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
 import '../../shared/widgets/info_card.dart';
@@ -23,6 +25,7 @@ class _CashPageState extends State<CashPage> {
   String _paymentMethod = 'efectivo';
   Map<String, Object?>? _session;
   List<Map<String, Object?>> _movements = const <Map<String, Object?>>[];
+  List<Map<String, Object?>> _salesRows = const <Map<String, Object?>>[];
   double _salesTotal = 0;
   double _expensesTotal = 0;
   Map<String, double> _paymentTotals = <String, double>{};
@@ -30,7 +33,18 @@ class _CashPageState extends State<CashPage> {
   @override
   void initState() {
     super.initState();
+    AppSyncBus.changes.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    AppSyncBus.changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -64,6 +78,7 @@ class _CashPageState extends State<CashPage> {
     setState(() {
       _session = session;
       _movements = movements;
+      _salesRows = salesRows;
       _salesTotal = salesTotal;
       _expensesTotal = expensesTotal;
       _paymentTotals = paymentTotals;
@@ -84,6 +99,7 @@ class _CashPageState extends State<CashPage> {
       'opened_by': 'mobile_user',
       'closing_notes': '',
     });
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -96,6 +112,7 @@ class _CashPageState extends State<CashPage> {
       whereArgs: <Object?>[_session!['id']],
     );
     _notesController.clear();
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -113,6 +130,7 @@ class _CashPageState extends State<CashPage> {
     _conceptController.clear();
     _amountController.clear();
     _notesController.clear();
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -176,6 +194,7 @@ class _CashPageState extends State<CashPage> {
       where: 'id = ?',
       whereArgs: <Object?>[movement['id']],
     );
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -193,6 +212,7 @@ class _CashPageState extends State<CashPage> {
     );
     if (confirm != true) return;
     await AppDatabase.instance.delete('cash_movements', where: 'id = ?', whereArgs: <Object?>[movement['id']]);
+    AppSyncBus.bump();
     await _load();
   }
 
@@ -216,6 +236,21 @@ class _CashPageState extends State<CashPage> {
               SizedBox(width: 220, child: InfoCard(title: 'Caja esperada', value: copCurrency.format(expectedCash))),
             ],
           ),
+          const SizedBox(height: 16),
+          if (_session == null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    const Text('Antes de vender, abre caja y luego registra servicios para que ventas, caja y cierre cuadren bien.'),
+                    ActionChip(label: const Text('Ir a servicio'), onPressed: () => context.push('/new-service')),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -266,6 +301,21 @@ class _CashPageState extends State<CashPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (_session == null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    const Text('Antes de vender, abre caja y luego registra servicios para que ventas, caja y cierre cuadren bien.'),
+                    ActionChip(label: const Text('Ir a servicio'), onPressed: () => context.push('/new-service')),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -284,6 +334,23 @@ class _CashPageState extends State<CashPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (_salesRows.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Ventas registradas', style: Theme.of(context).textTheme.titleMedium),
+            ),
+          ..._salesRows.map((sale) => Card(
+                child: ListTile(
+                  title: Text('Servicio vendido'),
+                  subtitle: Text('${sale['payment_method']} • ${formatShortDateTime(DateTime.parse('${sale['sale_at']}'))}'),
+                  trailing: Text(copCurrency.format((sale['net_total'] as num).toDouble())),
+                ),
+              )),
+          if (_movements.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 8),
+              child: Text('Movimientos manuales', style: Theme.of(context).textTheme.titleMedium),
+            ),
           ..._movements.map((movement) => Card(
                 child: ListTile(
                   title: Text('${movement['concept']}'),
