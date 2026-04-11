@@ -144,16 +144,12 @@ class _HomePageState extends State<HomePage> {
                     const Text('Flujo correcto del día', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     const Text(
-                      '1. Configura negocio, profesionales, clientes y catálogo.
-'
-                      '2. Abre caja.
-'
-                      '3. Registra citas o servicios.
-'
-                      '4. Cada servicio debe facturar a un cliente, quedar ligado a un profesional y afectar ventas/caja.
-'
-                      '5. Revisa el cierre y exporta el JSON por WhatsApp.',
-                    ),
+  '1. Configura negocio, profesionales, clientes y catálogo.\n'
+  '2. Abre caja.\n'
+  '3. Registra citas o servicios.\n'
+  '4. Cada servicio debe facturar a un cliente, quedar ligado a un profesional y afectar ventas/caja.\n'
+  '5. Revisa el cierre y exporta el JSON por WhatsApp.',
+),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
