@@ -1,7 +1,7 @@
 name: studio_pro_mobile_lite
 description: Studio Pro Mobile Lite v1 offline para barberías.
 publish_to: none
-version: 1.7.0+8
+version: 1.8.0+9
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

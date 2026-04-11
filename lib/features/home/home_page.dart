@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> {
                       spacing: 12,
                       runSpacing: 12,
                       children: <Widget>[
-                        FilledButton.icon(onPressed: () => context.go('/new-service'), icon: const Icon(Icons.add), label: const Text('Nuevo servicio')),
+                        FilledButton.icon(onPressed: () => context.go('/catalog'), icon: const Icon(Icons.add), label: const Text('Servicios')),
                         OutlinedButton.icon(onPressed: () => context.go('/agenda'), icon: const Icon(Icons.event_note), label: const Text('Agenda')),
                         OutlinedButton.icon(onPressed: () => context.go('/cash'), icon: const Icon(Icons.payments), label: const Text('Caja')),
                         OutlinedButton.icon(onPressed: () => context.go('/closing'), icon: const Icon(Icons.task_alt), label: const Text('Cerrar día')),

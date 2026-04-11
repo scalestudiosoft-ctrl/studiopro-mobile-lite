@@ -54,9 +54,9 @@ class AppDatabase {
     final existing = await db.query('service_catalog', limit: 1);
     if (existing.isNotEmpty) return;
     final items = <ServiceCatalogItem>[
-      const ServiceCatalogItem(code: 'SRV-CORTE', name: 'Corte clásico', basePrice: 25000),
-      const ServiceCatalogItem(code: 'SRV-BARBA', name: 'Barba', basePrice: 15000),
-      const ServiceCatalogItem(code: 'SRV-CORTE-BARBA', name: 'Corte + barba', basePrice: 35000),
+      const ServiceCatalogItem(code: 'SRV-CORTE', name: 'Corte clásico', basePrice: 25000, durationMinutes: 45, commissionPercent: 50, description: 'Servicio base de corte.'),
+      const ServiceCatalogItem(code: 'SRV-BARBA', name: 'Barba', basePrice: 15000, durationMinutes: 20, commissionPercent: 50, description: 'Perfilado y arreglo de barba.'),
+      const ServiceCatalogItem(code: 'SRV-CORTE-BARBA', name: 'Corte + barba', basePrice: 35000, durationMinutes: 60, commissionPercent: 50, description: 'Combo de corte y barba.'),
     ];
     for (final item in items) {
       await db.insert('service_catalog', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);

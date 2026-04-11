@@ -71,6 +71,14 @@ class ClosingExportService {
       }
     }
 
+    double manualCashIncome = 0;
+    for (final movement in cashMovements) {
+      final amount = (movement['amount'] as num).toDouble();
+      if ((movement['type'] as String).toLowerCase() == 'income' && ('${movement['payment_method']}'.toLowerCase() == 'efectivo')) {
+        manualCashIncome += amount;
+      }
+    }
+
     final openingCash = session == null ? 0.0 : (session['opening_cash'] as num).toDouble();
 
     return <String, Object?>{
@@ -84,7 +92,7 @@ class ClosingExportService {
       'clientsCount': services.map((e) => e['client_id']).toSet().length,
       'servicesCount': services.length,
       'openingCash': openingCash,
-      'expectedCashClosing': openingCash + paymentTotals['cash_total']! - expensesTotal,
+      'expectedCashClosing': openingCash + paymentTotals['cash_total']! + manualCashIncome - expensesTotal,
       'paymentTotals': paymentTotals,
     };
   }
@@ -158,6 +166,9 @@ class ClosingExportService {
             'service_code': e['code'],
             'service_name': e['name'],
             'base_price': e['base_price'],
+            'duration_minutes': e['duration_minutes'] ?? 45,
+            'commission_percent': e['commission_percent'] ?? 0,
+            'description': e['description'] ?? '',
           }).toList(),
       'services_performed': services.map((e) => <String, Object?>{
             'performed_id': e['id'],
@@ -190,6 +201,14 @@ class ClosingExportService {
             'type': e['type'],
             'concept': e['concept'],
             'amount': e['amount'],
+            'payment_method': e['payment_method'],
+            'sale_id': e['sale_id'],
+            'client_id': e['client_id'],
+            'client_name': e['client_name'],
+            'worker_id': e['worker_id'],
+            'worker_name': e['worker_name'],
+            'service_code': e['service_code'],
+            'service_name': e['service_name'],
             'notes': e['notes'],
           }).toList(),
       'daily_summary': <String, Object?>{

@@ -287,7 +287,7 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   void _goToService(Map<String, Object?> row) {
-    context.push('/new-service?appointmentId=${Uri.encodeComponent('${row['id']}')}');
+    context.push('/cash?appointmentId=${Uri.encodeComponent('${row['id']}')}');
   }
 
   void _showMessage(String text) {

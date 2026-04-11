@@ -33,6 +33,9 @@ const List<String> appSchema = <String>[
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     base_price REAL NOT NULL,
+    duration_minutes INTEGER NOT NULL DEFAULT 45,
+    commission_percent REAL NOT NULL DEFAULT 0,
+    description TEXT NOT NULL DEFAULT '',
     active INTEGER NOT NULL DEFAULT 1
   )
   ''',
@@ -86,7 +89,14 @@ const List<String> appSchema = <String>[
     concept TEXT NOT NULL,
     amount REAL NOT NULL,
     payment_method TEXT NOT NULL DEFAULT 'efectivo',
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    sale_id TEXT,
+    client_id TEXT,
+    client_name TEXT,
+    worker_id TEXT,
+    worker_name TEXT,
+    service_code TEXT,
+    service_name TEXT
   )
   ''',
   '''
@@ -146,6 +156,16 @@ const List<String> appSchema = <String>[
     closing_notes TEXT NOT NULL DEFAULT ''
   )
   ''',
+  "ALTER TABLE service_catalog ADD COLUMN duration_minutes INTEGER NOT NULL DEFAULT 45",
+  "ALTER TABLE service_catalog ADD COLUMN commission_percent REAL NOT NULL DEFAULT 0",
+  "ALTER TABLE service_catalog ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE cash_movements ADD COLUMN sale_id TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN client_id TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN client_name TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN worker_id TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN worker_name TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN service_code TEXT",
+  "ALTER TABLE cash_movements ADD COLUMN service_name TEXT",
   "ALTER TABLE daily_closings ADD COLUMN closed_by TEXT NOT NULL DEFAULT 'mobile_user'",
   "ALTER TABLE daily_closings ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
 ];
