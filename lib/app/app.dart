@@ -8,7 +8,7 @@ class StudioProMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Studio Pro Mobile Lite',
+      title: 'Studio Pro',
       debugShowCheckedModeBanner: false,
       theme: buildStudioTheme(),
       routerConfig: appRouter,

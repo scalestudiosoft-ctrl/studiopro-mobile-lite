@@ -44,7 +44,7 @@ class _ExportsPageState extends State<ExportsPage> {
   Future<void> _share(Map<String, Object?> row) async {
     final path = '${row['file_path']}';
     if (!await File(path).exists()) return;
-    await Share.shareXFiles(<XFile>[XFile(path)], text: 'Cierre Studio Pro Mobile Lite');
+    await Share.shareXFiles(<XFile>[XFile(path)], text: 'Cierre Studio Pro');
   }
 
   @override

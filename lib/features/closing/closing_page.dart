@@ -103,6 +103,21 @@ class _ClosingPageState extends State<ClosingPage> {
     );
   }
 
+  String _paymentLabel(String key) {
+    switch (key) {
+      case 'cash_total':
+        return 'Efectivo';
+      case 'transfer_total':
+        return 'Transferencia';
+      case 'card_total':
+        return 'Tarjeta';
+      case 'digital_wallet_total':
+        return 'Billetera digital';
+      default:
+        return 'Otro';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final salesTotal = (_summary['salesTotal'] as num?)?.toDouble() ?? 0;
@@ -124,7 +139,9 @@ class _ClosingPageState extends State<ClosingPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          Text('Resumen de ${formatShortDate(DateTime.now())}', style: Theme.of(context).textTheme.titleMedium),
+          Text('Resumen de ${formatShortDate(DateTime.now())}', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          const Text('Verifica el resultado del día y luego genera el JSON para enviarlo al escritorio.'),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -138,8 +155,8 @@ class _ClosingPageState extends State<ClosingPage> {
               SizedBox(width: 220, child: InfoCard(title: 'Caja esperada', value: copCurrency.format(expectedCash))),
             ],
           ),
-          const SizedBox(height: 16),
-          if (blockingIssues.isNotEmpty)
+          if (blockingIssues.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 16),
             Card(
               color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
@@ -157,6 +174,7 @@ class _ClosingPageState extends State<ClosingPage> {
                 ),
               ),
             ),
+          ],
           if (warnings.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
             Card(
@@ -177,7 +195,7 @@ class _ClosingPageState extends State<ClosingPage> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -185,18 +203,16 @@ class _ClosingPageState extends State<ClosingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text('Totales por método de pago', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ...<MapEntry<String, double>>[
-                    MapEntry<String, double>('Efectivo', paymentTotals['cash_total'] ?? 0),
-                    MapEntry<String, double>('Transferencia', paymentTotals['transfer_total'] ?? 0),
-                    MapEntry<String, double>('Tarjeta', paymentTotals['card_total'] ?? 0),
-                    MapEntry<String, double>('Billetera digital', paymentTotals['digital_wallet_total'] ?? 0),
-                    MapEntry<String, double>('Otro', paymentTotals['other_total'] ?? 0),
-                  ].map(
-                    (entry) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(entry.key),
-                      trailing: Text(copCurrency.format(entry.value)),
+                  const SizedBox(height: 12),
+                  ...<String>['cash_total', 'transfer_total', 'card_total', 'digital_wallet_total', 'other_total'].map(
+                    (key) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(child: Text(_paymentLabel(key))),
+                          Text(copCurrency.format(paymentTotals[key] ?? 0), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -212,7 +228,7 @@ class _ClosingPageState extends State<ClosingPage> {
                 children: <Widget>[
                   Text('Observaciones del cierre', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
-                  TextField(controller: _notesController, maxLines: 3, decoration: const InputDecoration(labelText: 'Notas del día')),
+                  TextField(controller: _notesController, maxLines: 3, decoration: const InputDecoration(labelText: 'Notas del día')), 
                   const SizedBox(height: 16),
                   Row(
                     children: <Widget>[

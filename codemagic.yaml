@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Studio Pro Mobile Lite Android APK
+    name: Studio Pro Android APK
     environment:
       flutter: stable
     scripts:

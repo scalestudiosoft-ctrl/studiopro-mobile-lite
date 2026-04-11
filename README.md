@@ -1,6 +1,6 @@
-# Studio Pro Mobile Lite 1.4.0
+# Studio Pro 2.0.0
 
-Etapa de preparación Android/APK de la app móvil offline para Studio Pro.
+Versión candidata estable de la app móvil offline de Studio Pro.
 
 ## Incluye
 - Base Flutter fuente

@@ -43,9 +43,7 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   void _onDataChanged() {
-    if (mounted) {
-      _load();
-    }
+    if (mounted) _load();
   }
 
   String get _selectedDayText => formatDateOnly(_selectedDay);
@@ -57,8 +55,8 @@ class _AgendaPageState extends State<AgendaPage> {
       <Object?>[_selectedDayText],
     );
     final clients = await db.queryAll('clients', orderBy: 'name ASC');
-    final workers = await db.queryAll('workers', orderBy: 'name ASC');
-    final services = await db.queryAll('service_catalog', orderBy: 'name ASC');
+    final workers = await db.queryWhere('workers', where: 'active = ?', whereArgs: <Object?>[1], orderBy: 'name ASC');
+    final services = await db.queryWhere('service_catalog', where: 'active = ?', whereArgs: <Object?>[1], orderBy: 'name ASC');
     if (!mounted) return;
     setState(() {
       _appointments = appointments;
@@ -142,18 +140,13 @@ class _AgendaPageState extends State<AgendaPage> {
       setState(() {
         _selectedDay = DateTime(_scheduledAt.year, _scheduledAt.month, _scheduledAt.day);
         _scheduledAt = DateTime.now().add(const Duration(minutes: 30));
-        if (_services.isNotEmpty) {
-          _selectedServiceCode = '${_services.first['code']}';
-        }
       });
       AppSyncBus.bump();
       await _load();
       if (!mounted) return;
       _showMessage('Cita guardada para ${client['name']} el ${formatShortDateTime(savedAt)}.');
     } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -186,9 +179,7 @@ class _AgendaPageState extends State<AgendaPage> {
                   value: workerId,
                   items: <DropdownMenuItem<String?>>[
                     const DropdownMenuItem<String?>(value: null, child: Text('Sin asignar')),
-                    ..._workers.map(
-                      (item) => DropdownMenuItem<String?>(value: '${item['id']}', child: Text('${item['name']}')),
-                    ),
+                    ..._workers.map((item) => DropdownMenuItem<String?>(value: '${item['id']}', child: Text('${item['name']}'))),
                   ],
                   onChanged: (value) => setModalState(() => workerId = value),
                   decoration: const InputDecoration(labelText: 'Profesional'),
@@ -196,9 +187,7 @@ class _AgendaPageState extends State<AgendaPage> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String?>(
                   value: serviceCode,
-                  items: _services
-                      .map((item) => DropdownMenuItem<String?>(value: '${item['code']}', child: Text('${item['name']}')))
-                      .toList(),
+                  items: _services.map((item) => DropdownMenuItem<String?>(value: '${item['code']}', child: Text('${item['name']}'))).toList(),
                   onChanged: (value) => setModalState(() => serviceCode = value),
                   decoration: const InputDecoration(labelText: 'Servicio'),
                 ),
@@ -286,12 +275,21 @@ class _AgendaPageState extends State<AgendaPage> {
     _showMessage('Cita eliminada.');
   }
 
-  void _goToService(Map<String, Object?> row) {
+  void _goToCash(Map<String, Object?> row) {
     context.push('/cash?appointmentId=${Uri.encodeComponent('${row['id']}')}');
   }
 
   void _showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  String _dayChipLabel(DateTime date) {
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    if (normalizedDate == normalizedToday) return 'Hoy';
+    if (normalizedDate == normalizedToday.add(const Duration(days: 1))) return 'Mañana';
+    return formatShortDate(date);
   }
 
   Color _statusColor(BuildContext context, String status) {
@@ -310,6 +308,12 @@ class _AgendaPageState extends State<AgendaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final days = <DateTime>[
+      DateTime.now(),
+      DateTime.now().add(const Duration(days: 1)),
+      DateTime.now().add(const Duration(days: 2)),
+    ];
+
     return AppShell(
       title: 'Agenda',
       body: RefreshIndicator(
@@ -323,85 +327,27 @@ class _AgendaPageState extends State<AgendaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text('Citas de ${formatShortDate(_selectedDay)}', style: Theme.of(context).textTheme.titleMedium),
-                              const SizedBox(height: 4),
-                              Text('${_appointments.length} programadas • ${_appointments.where((e) => '${e['status']}' == 'pendiente').length} pendientes'),
-                            ],
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _pickSelectedDay,
-                          icon: const Icon(Icons.calendar_today_outlined),
-                          label: const Text('Cambiar día'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: <Widget>[
-                        FilterChip(
-                          label: const Text('Hoy'),
-                          selected: formatDateOnly(DateTime.now()) == _selectedDayText,
-                          onSelected: (_) async {
-                            setState(() => _selectedDay = DateTime.now());
-                            await _load();
-                          },
-                        ),
-                        FilterChip(
-                          label: const Text('Mañana'),
-                          selected: formatDateOnly(DateTime.now().add(const Duration(days: 1))) == _selectedDayText,
-                          onSelected: (_) async {
-                            setState(() => _selectedDay = DateTime.now().add(const Duration(days: 1)));
-                            await _load();
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('Nueva cita', style: Theme.of(context).textTheme.titleMedium),
+                    Text('Programar cita', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    const Text('Agenda la visita. La facturación real se hace en Caja cuando llegue el cliente.'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedClientId,
-                      items: _clients
-                          .map((row) => DropdownMenuItem<String>(value: '${row['id']}', child: Text('${row['name']} • ${row['phone']}')))
-                          .toList(),
+                      items: _clients.map((item) => DropdownMenuItem<String>(value: '${item['id']}', child: Text('${item['name']}'))).toList(),
                       onChanged: (value) => setState(() => _selectedClientId = value),
                       decoration: const InputDecoration(labelText: 'Cliente'),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String?>(
+                    DropdownButtonFormField<String>(
                       value: _selectedWorkerId,
-                      items: <DropdownMenuItem<String?>>[
-                        const DropdownMenuItem<String?>(value: null, child: Text('Sin asignar')),
-                        ..._workers.map((row) => DropdownMenuItem<String?>(value: '${row['id']}', child: Text('${row['name']}'))),
-                      ],
+                      items: _workers.map((item) => DropdownMenuItem<String>(value: '${item['id']}', child: Text('${item['name']}'))).toList(),
                       onChanged: (value) => setState(() => _selectedWorkerId = value),
                       decoration: const InputDecoration(labelText: 'Profesional'),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String?>(
+                    DropdownButtonFormField<String>(
                       value: _selectedServiceCode,
-                      items: _services
-                          .map((row) => DropdownMenuItem<String?>(value: '${row['code']}', child: Text('${row['name']}')))
-                          .toList(),
+                      items: _services.map((item) => DropdownMenuItem<String>(value: '${item['code']}', child: Text('${item['name']}'))).toList(),
                       onChanged: (value) => setState(() => _selectedServiceCode = value),
                       decoration: const InputDecoration(labelText: 'Servicio'),
                     ),
@@ -414,10 +360,10 @@ class _AgendaPageState extends State<AgendaPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')),
+                    TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')), 
                     const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
+                    SizedBox(
+                      width: double.infinity,
                       child: FilledButton.icon(
                         onPressed: _saving ? null : _saveAppointment,
                         icon: const Icon(Icons.save_outlined),
@@ -428,24 +374,41 @@ class _AgendaPageState extends State<AgendaPage> {
                 ),
               ),
             ),
-            if (_clients.isEmpty || _workers.isEmpty || _services.isEmpty) ...<Widget>[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  if (_clients.isEmpty) ActionChip(label: const Text('Crear cliente'), onPressed: () => context.push('/clients')),
-                  if (_workers.isEmpty) ActionChip(label: const Text('Crear profesional'), onPressed: () => context.push('/workers')),
-                  if (_services.isEmpty) ActionChip(label: const Text('Crear servicio'), onPressed: () => context.push('/catalog')),
-                ],
-              ),
-            ],
             const SizedBox(height: 16),
-            Text('Agenda del día seleccionado', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: <Widget>[
+                Expanded(child: Text('Citas del día', style: Theme.of(context).textTheme.titleMedium)),
+                TextButton.icon(onPressed: _pickSelectedDay, icon: const Icon(Icons.calendar_month_outlined), label: const Text('Elegir fecha')),
+              ],
+            ),
             const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: days.map((date) {
+                final normalized = DateTime(date.year, date.month, date.day);
+                final selected = normalized == DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+                return ChoiceChip(
+                  selected: selected,
+                  label: Text(_dayChipLabel(date)),
+                  onSelected: (_) async {
+                    setState(() => _selectedDay = normalized);
+                    await _load();
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            if (_appointments.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No hay citas para el día seleccionado.'),
+                ),
+              ),
             ..._appointments.map((row) {
-              final status = '${row['status'] ?? 'pendiente'}';
               final scheduledAt = DateTime.parse('${row['scheduled_at']}');
+              final status = '${row['status']}';
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -453,11 +416,16 @@ class _AgendaPageState extends State<AgendaPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Expanded(
-                            child: Text(
-                              '${row['client_name']} • ${row['service_name'] ?? 'Servicio'}',
-                              style: Theme.of(context).textTheme.titleSmall,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text('${row['client_name']}', style: Theme.of(context).textTheme.titleMedium),
+                                const SizedBox(height: 4),
+                                Text('${row['service_name'] ?? 'Sin servicio'} · ${row['worker_name'] ?? 'Sin profesional'}'),
+                              ],
                             ),
                           ),
                           Container(
@@ -470,41 +438,45 @@ class _AgendaPageState extends State<AgendaPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text('Hora: ${formatShortTime(scheduledAt)}'),
-                      Text('Profesional: ${row['worker_name'] ?? 'Sin asignar'}'),
-                      if ('${row['notes'] ?? ''}'.trim().isNotEmpty) Text('Notas: ${row['notes']}'),
                       const SizedBox(height: 10),
+                      Text('Hora: ${formatShortDateTime(scheduledAt)}'),
+                      if ('${row['notes'] ?? ''}'.trim().isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 4),
+                        Text('Notas: ${row['notes']}'),
+                      ],
+                      const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: <Widget>[
                           FilledButton.tonalIcon(
-                            onPressed: () => _goToService(row),
+                            onPressed: () => _goToCash(row),
                             icon: const Icon(Icons.point_of_sale_outlined),
-                            label: const Text('Pasar a servicio'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _editAppointment(row),
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Editar'),
+                            label: const Text('Pasar a caja'),
                           ),
                           PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (AppConstants.appointmentStatuses.contains(value)) {
-                                _updateStatus(row, value);
-                              } else if (value == 'delete') {
-                                _deleteAppointment(row);
+                            onSelected: (value) async {
+                              switch (value) {
+                                case 'edit':
+                                  await _editAppointment(row);
+                                  break;
+                                case 'delete':
+                                  await _deleteAppointment(row);
+                                  break;
+                                default:
+                                  await _updateStatus(row, value);
                               }
                             },
                             itemBuilder: (context) => <PopupMenuEntry<String>>[
-                              ...AppConstants.appointmentStatuses.map(
-                                (statusValue) => PopupMenuItem<String>(value: statusValue, child: Text('Estado: $statusValue')),
-                              ),
+                              const PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
+                              const PopupMenuItem<String>(value: 'delete', child: Text('Eliminar')),
                               const PopupMenuDivider(),
-                              const PopupMenuItem<String>(value: 'delete', child: Text('Eliminar cita')),
+                              ...AppConstants.appointmentStatuses.map((statusItem) => PopupMenuItem<String>(
+                                    value: statusItem,
+                                    child: Text('Marcar $statusItem'),
+                                  )),
                             ],
-                            child: const Chip(label: Text('Más acciones')),
+                            child: const Chip(label: Text('Estado y acciones')),
                           ),
                         ],
                       ),
@@ -513,13 +485,6 @@ class _AgendaPageState extends State<AgendaPage> {
                 ),
               );
             }),
-            if (_appointments.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('No hay citas registradas para este día.'),
-                ),
-              ),
           ],
         ),
       ),

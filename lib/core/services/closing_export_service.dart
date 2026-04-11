@@ -286,6 +286,6 @@ class ClosingExportService {
 
   Future<void> shareCloseFile({String notes = '', String closedBy = 'mobile_user'}) async {
     final file = await exportTodayClose(notes: notes, closedBy: closedBy);
-    await Share.shareXFiles(<XFile>[XFile(file.path)], text: 'Cierre Studio Pro Mobile Lite');
+    await Share.shareXFiles(<XFile>[XFile(file.path)], text: 'Cierre Studio Pro');
   }
 }
