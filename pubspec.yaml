@@ -1,7 +1,7 @@
 name: studio_pro_mobile_lite
 description: Studio Pro Mobile Lite v1 offline para barberías.
 publish_to: none
-version: 1.5.0+6
+version: 1.6.0+7
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -22,6 +22,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+
+flutter_launcher_icons:
+  android: true
+  image_path: assets/icons/studio_pro_icon.png
+  min_sdk_android: 21

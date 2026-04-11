@@ -57,7 +57,18 @@ class _CashPageState extends State<CashPage> {
       <Object?>[workDate],
     );
     final salesRows = await db.queryRaw(
-      'SELECT * FROM sales WHERE substr(sale_at, 1, 10) = ? ORDER BY sale_at DESC',
+      '''
+      SELECT
+        s.*,
+        sr.client_name AS client_name,
+        sr.worker_name AS worker_name,
+        sr.service_name AS service_name,
+        sr.notes AS service_notes
+      FROM sales s
+      LEFT JOIN service_records sr ON sr.id = s.service_record_id
+      WHERE substr(s.sale_at, 1, 10) = ?
+      ORDER BY s.sale_at DESC
+      ''',
       <Object?>[workDate],
     );
     double salesTotal = 0;
@@ -339,46 +350,99 @@ class _CashPageState extends State<CashPage> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text('Ventas registradas', style: Theme.of(context).textTheme.titleMedium),
             ),
-          ..._salesRows.map((sale) => Card(
-                child: ListTile(
-                  title: Text('Servicio vendido'),
-                  subtitle: Text('${sale['payment_method']} • ${formatShortDateTime(DateTime.parse('${sale['sale_at']}'))}'),
-                  trailing: Text(copCurrency.format((sale['net_total'] as num).toDouble())),
+          ..._salesRows.map((sale) {
+            final amount = (sale['net_total'] as num).toDouble();
+            final serviceName = '${sale['service_name'] ?? 'Servicio'}';
+            final clientName = '${sale['client_name'] ?? 'Cliente sin nombre'}';
+            final workerName = '${sale['worker_name'] ?? 'Profesional sin asignar'}';
+            final saleAt = DateTime.tryParse('${sale['sale_at']}');
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(serviceName, style: Theme.of(context).textTheme.titleMedium),
+                              const SizedBox(height: 6),
+                              Text('Cliente: $clientName'),
+                              Text('Profesional: $workerName'),
+                              Text('Pago: ${sale['payment_method']}'),
+                              if (saleAt != null) Text('Hora: ${formatShortDateTime(saleAt)}'),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Venta servicio'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        copCurrency.format(amount),
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
                 ),
-              )),
+              ),
+            );
+          }),
           if (_movements.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8, bottom: 8),
               child: Text('Movimientos manuales', style: Theme.of(context).textTheme.titleMedium),
             ),
-          ..._movements.map((movement) => Card(
-                child: ListTile(
-                  title: Text('${movement['concept']}'),
-                  subtitle: Text('${movement['type']} • ${movement['payment_method']} • ${formatShortDateTime(DateTime.parse('${movement['movement_at']}'))}'),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editMovement(movement);
-                      } else if (value == 'delete') {
-                        _deleteMovement(movement);
-                      }
-                    },
-                    itemBuilder: (context) => const <PopupMenuEntry<String>>[
-                      PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
-                      PopupMenuItem<String>(value: 'delete', child: Text('Eliminar')),
+          ..._movements.map((movement) {
+            final isExpense = '${movement['type']}' == 'expense';
+            final amount = (movement['amount'] as num).toDouble();
+            return Card(
+              child: ListTile(
+                title: Text('${movement['concept']}'),
+                subtitle: Text('${isExpense ? 'Gasto / salida' : 'Ingreso extra'} • ${movement['payment_method']} • ${formatShortDateTime(DateTime.parse('${movement['movement_at']}'))}'),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editMovement(movement);
+                    } else if (value == 'delete') {
+                      _deleteMovement(movement);
+                    }
+                  },
+                  itemBuilder: (context) => const <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
+                    PopupMenuItem<String>(value: 'delete', child: Text('Eliminar')),
+                  ],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        copCurrency.format(amount),
+                        style: TextStyle(
+                          color: isExpense ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Icon(Icons.more_vert),
                     ],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        Text(copCurrency.format((movement['amount'] as num).toDouble())),
-                        const SizedBox(height: 4),
-                        const Icon(Icons.more_vert),
-                      ],
-                    ),
                   ),
                 ),
-              )),
+              ),
+            );
+          }),
         ],
       ),
     );

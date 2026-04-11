@@ -45,17 +45,22 @@ class _AgendaPageState extends State<AgendaPage> {
 
   Future<void> _load() async {
     final db = AppDatabase.instance;
-    final workDate = formatDateOnly(DateTime.now());
     final appointments = await db.queryRaw(
-      'SELECT * FROM appointments WHERE substr(scheduled_at, 1, 10) = ? ORDER BY scheduled_at ASC',
-      <Object?>[workDate],
+      'SELECT * FROM appointments ORDER BY scheduled_at ASC',
     );
     final clients = await db.queryAll('clients', orderBy: 'name ASC');
     final workers = await db.queryAll('workers', orderBy: 'name ASC');
     final services = await db.queryAll('service_catalog', orderBy: 'name ASC');
     if (!mounted) return;
     setState(() {
-      _appointments = appointments;
+      _appointments = appointments.where((row) {
+        final raw = row['scheduled_at'];
+        if (raw == null) return false;
+        final date = DateTime.tryParse('$raw');
+        if (date == null) return false;
+        final today = DateTime.now();
+        return date.year == today.year && date.month == today.month && date.day == today.day;
+      }).toList();
       _clients = clients;
       _workers = workers;
       _services = services;
@@ -113,8 +118,14 @@ class _AgendaPageState extends State<AgendaPage> {
       'notes': _notesController.text.trim(),
     });
     _notesController.clear();
+    _scheduledAt = DateTime.now().add(const Duration(minutes: 30));
+    if (_services.isNotEmpty) {
+      _selectedServiceCode = '${_services.first['code']}';
+    }
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cita guardada correctamente.')));
   }
 
   Future<void> _updateStatus(Map<String, Object?> row, String newStatus) async {
