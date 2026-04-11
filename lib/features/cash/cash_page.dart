@@ -40,6 +40,10 @@ class _CashPageState extends State<CashPage> {
   @override
   void dispose() {
     AppSyncBus.changes.removeListener(_onDataChanged);
+    _openingController.dispose();
+    _conceptController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -50,7 +54,11 @@ class _CashPageState extends State<CashPage> {
   Future<void> _load() async {
     final db = AppDatabase.instance;
     final workDate = formatDateOnly(DateTime.now());
-    final session = await db.firstRow('cash_sessions', where: 'work_date = ? AND status = ?', whereArgs: <Object?>[workDate, 'open']);
+    final session = await db.firstRow(
+      'cash_sessions',
+      where: 'work_date = ? AND status = ?',
+      whereArgs: <Object?>[workDate, 'open'],
+    );
     final business = await db.firstRow('business_profile');
     final movements = await db.queryRaw(
       'SELECT * FROM cash_movements WHERE substr(movement_at, 1, 10) = ? ORDER BY movement_at DESC',
@@ -71,13 +79,15 @@ class _CashPageState extends State<CashPage> {
       ''',
       <Object?>[workDate],
     );
+
     double salesTotal = 0;
     double expensesTotal = 0;
     final paymentTotals = <String, double>{for (final method in AppConstants.paymentMethods) method: 0};
     for (final row in salesRows) {
       final total = (row['net_total'] as num).toDouble();
       salesTotal += total;
-      paymentTotals['${row['payment_method']}'] = (paymentTotals['${row['payment_method']}'] ?? 0) + total;
+      final method = '${row['payment_method']}';
+      paymentTotals[method] = (paymentTotals[method] ?? 0) + total;
     }
     for (final row in movements) {
       final amount = (row['amount'] as num).toDouble();
@@ -85,6 +95,7 @@ class _CashPageState extends State<CashPage> {
         expensesTotal += amount;
       }
     }
+
     if (!mounted) return;
     setState(() {
       _session = session;
@@ -100,7 +111,7 @@ class _CashPageState extends State<CashPage> {
   }
 
   Future<void> _openCash() async {
-    final amount = double.tryParse(_openingController.text.trim()) ?? 0;
+    final amount = double.tryParse(_openingController.text.trim().replaceAll(',', '.')) ?? 0;
     await AppDatabase.instance.insert('cash_sessions', <String, Object?>{
       'id': 'SESSION-${const Uuid().v4()}',
       'work_date': formatDateOnly(DateTime.now()),
@@ -112,29 +123,49 @@ class _CashPageState extends State<CashPage> {
     });
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Caja abierta correctamente.');
   }
 
   Future<void> _closeCash() async {
     if (_session == null) return;
     await AppDatabase.instance.update(
       'cash_sessions',
-      <String, Object?>{'status': 'closed', 'closed_at': DateTime.now().toIso8601String(), 'closing_notes': _notesController.text.trim()},
+      <String, Object?>{
+        'status': 'closed',
+        'closed_at': DateTime.now().toIso8601String(),
+        'closing_notes': _notesController.text.trim(),
+      },
       where: 'id = ?',
       whereArgs: <Object?>[_session!['id']],
     );
     _notesController.clear();
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Caja cerrada. Revisa el cierre del día para exportar el JSON.');
   }
 
   Future<void> _saveMovement() async {
-    if (_conceptController.text.trim().isEmpty || _amountController.text.trim().isEmpty) return;
+    if (_session == null) {
+      _showMessage('Abre caja antes de registrar movimientos manuales.');
+      return;
+    }
+    if (_conceptController.text.trim().isEmpty || _amountController.text.trim().isEmpty) {
+      _showMessage('Concepto y valor son obligatorios.');
+      return;
+    }
+    final amount = double.tryParse(_amountController.text.trim().replaceAll(',', '.')) ?? 0;
+    if (amount <= 0) {
+      _showMessage('El valor del movimiento debe ser mayor que cero.');
+      return;
+    }
     await AppDatabase.instance.insert('cash_movements', <String, Object?>{
       'id': 'MOV-${const Uuid().v4()}',
       'movement_at': DateTime.now().toIso8601String(),
       'type': _movementType,
       'concept': _conceptController.text.trim(),
-      'amount': double.tryParse(_amountController.text.trim()) ?? 0,
+      'amount': amount,
       'payment_method': _paymentMethod,
       'notes': _notesController.text.trim(),
     });
@@ -143,6 +174,8 @@ class _CashPageState extends State<CashPage> {
     _notesController.clear();
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Movimiento guardado.');
   }
 
   Future<void> _editMovement(Map<String, Object?> movement) async {
@@ -172,11 +205,17 @@ class _CashPageState extends State<CashPage> {
                 const SizedBox(height: 12),
                 TextField(controller: conceptController, decoration: const InputDecoration(labelText: 'Concepto')),
                 const SizedBox(height: 12),
-                TextField(controller: amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor')),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor'),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: paymentMethod,
-                  items: AppConstants.paymentMethods.map((method) => DropdownMenuItem<String>(value: method, child: Text(method))).toList(),
+                  items: AppConstants.paymentMethods
+                      .map((method) => DropdownMenuItem<String>(value: method, child: Text(method)))
+                      .toList(),
                   onChanged: (value) => setModalState(() => paymentMethod = value ?? 'efectivo'),
                   decoration: const InputDecoration(labelText: 'Método de pago'),
                 ),
@@ -198,7 +237,7 @@ class _CashPageState extends State<CashPage> {
       <String, Object?>{
         'type': movementType,
         'concept': conceptController.text.trim(),
-        'amount': double.tryParse(amountController.text.trim()) ?? 0,
+        'amount': double.tryParse(amountController.text.trim().replaceAll(',', '.')) ?? 0,
         'payment_method': paymentMethod,
         'notes': notesController.text.trim(),
       },
@@ -227,6 +266,10 @@ class _CashPageState extends State<CashPage> {
     await _load();
   }
 
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final openingCash = _session == null ? 0.0 : (_session!['opening_cash'] as num).toDouble();
@@ -242,26 +285,11 @@ class _CashPageState extends State<CashPage> {
             children: <Widget>[
               SizedBox(width: 220, child: InfoCard(title: 'Estado', value: _session == null ? 'Cerrada' : 'Abierta')),
               SizedBox(width: 220, child: InfoCard(title: 'Apertura', value: copCurrency.format(openingCash))),
-              SizedBox(width: 220, child: InfoCard(title: 'Ventas', value: copCurrency.format(_salesTotal))),
-              SizedBox(width: 220, child: InfoCard(title: 'Gastos', value: copCurrency.format(_expensesTotal))),
+              SizedBox(width: 220, child: InfoCard(title: 'Ventas de servicios', value: copCurrency.format(_salesTotal))),
+              SizedBox(width: 220, child: InfoCard(title: 'Gastos / salidas', value: copCurrency.format(_expensesTotal))),
               SizedBox(width: 220, child: InfoCard(title: 'Caja esperada', value: copCurrency.format(expectedCash))),
             ],
           ),
-          const SizedBox(height: 16),
-          if (_session == null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    const Text('Antes de vender, abre caja y luego registra servicios para que ventas, caja y cierre cuadren bien.'),
-                    ActionChip(label: const Text('Ir a servicio'), onPressed: () => context.push('/new-service')),
-                  ],
-                ),
-              ),
-            ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -269,12 +297,40 @@ class _CashPageState extends State<CashPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(_session == null ? 'Abrir caja' : 'Registrar movimiento', style: Theme.of(context).textTheme.titleMedium),
+                  Text(_session == null ? 'Abrir caja' : 'Movimiento manual', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    _session == null
+                        ? 'Abre caja antes de registrar servicios. Así las ventas, gastos y el cierre quedarán coherentes.'
+                        : 'Las ventas de servicios se agregan solas. Aquí solo registras ingresos extra o gastos/salidas.',
+                  ),
                   const SizedBox(height: 12),
                   if (_session == null) ...<Widget>[
-                    TextField(controller: _openingController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Monto inicial')),
+                    TextField(
+                      controller: _openingController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Monto inicial'),
+                    ),
                     const SizedBox(height: 12),
-                    Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _openCash, child: const Text('Abrir caja'))),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _openCash,
+                            icon: const Icon(Icons.lock_open_outlined),
+                            label: const Text('Abrir caja'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push('/new-service'),
+                            icon: const Icon(Icons.point_of_sale_outlined),
+                            label: const Text('Ir a servicio'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ] else ...<Widget>[
                     DropdownButtonFormField<String>(
                       value: _movementType,
@@ -288,11 +344,17 @@ class _CashPageState extends State<CashPage> {
                     const SizedBox(height: 12),
                     TextField(controller: _conceptController, decoration: const InputDecoration(labelText: 'Concepto')),
                     const SizedBox(height: 12),
-                    TextField(controller: _amountController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor')),
+                    TextField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Valor'),
+                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _paymentMethod,
-                      items: AppConstants.paymentMethods.map((method) => DropdownMenuItem<String>(value: method, child: Text(method))).toList(),
+                      items: AppConstants.paymentMethods
+                          .map((method) => DropdownMenuItem<String>(value: method, child: Text(method)))
+                          .toList(),
                       onChanged: (value) => setState(() => _paymentMethod = value ?? 'efectivo'),
                       decoration: const InputDecoration(labelText: 'Método de pago'),
                     ),
@@ -301,9 +363,21 @@ class _CashPageState extends State<CashPage> {
                     const SizedBox(height: 12),
                     Row(
                       children: <Widget>[
-                        Expanded(child: FilledButton(onPressed: _saveMovement, child: const Text('Guardar movimiento'))),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _saveMovement,
+                            icon: const Icon(Icons.save_outlined),
+                            label: const Text('Guardar movimiento'),
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Expanded(child: OutlinedButton(onPressed: _closeCash, child: const Text('Cerrar caja'))),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _closeCash,
+                            icon: const Icon(Icons.task_alt_outlined),
+                            label: const Text('Cerrar caja'),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -312,43 +386,34 @@ class _CashPageState extends State<CashPage> {
             ),
           ),
           const SizedBox(height: 16),
-          if (_session == null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    const Text('Antes de vender, abre caja y luego registra servicios para que ventas, caja y cierre cuadren bien.'),
-                    ActionChip(label: const Text('Ir a servicio'), onPressed: () => context.push('/new-service')),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Pagos del día', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Métodos de pago del día', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  ...AppConstants.paymentMethods.map((method) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(method),
-                        trailing: Text(copCurrency.format(_paymentTotals[method] ?? 0)),
-                      )),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: AppConstants.paymentMethods.map((method) {
+                      return Chip(label: Text('$method • ${copCurrency.format(_paymentTotals[method] ?? 0)}'));
+                    }).toList(),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
-          if (_salesRows.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text('Ventas registradas', style: Theme.of(context).textTheme.titleMedium),
+          Text('Ventas registradas', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (_salesRows.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Todavía no hay ventas de servicios registradas hoy.'),
+              ),
             ),
           ..._salesRows.map((sale) {
             final amount = (sale['net_total'] as num).toDouble();
@@ -364,54 +429,60 @@ class _CashPageState extends State<CashPage> {
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(serviceName, style: Theme.of(context).textTheme.titleMedium),
-                              const SizedBox(height: 6),
-                              Text('Cliente: $clientName'),
-                              Text('Profesional: $workerName'),
-                              Text('Pago: ${sale['payment_method']}'),
-                              if (saleAt != null) Text('Hora: ${formatShortDateTime(saleAt)}'),
-                            ],
-                          ),
-                        ),
+                        Expanded(child: Text(serviceName, style: Theme.of(context).textTheme.titleMedium)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Text('Venta servicio'),
+                          child: const Text('Venta de servicio'),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    _detailLine(context, Icons.person_outline, 'Cliente', clientName),
+                    _detailLine(context, Icons.badge_outlined, 'Profesional', workerName),
+                    _detailLine(context, Icons.payments_outlined, 'Pago', '${sale['payment_method']}'),
+                    if (saleAt != null) _detailLine(context, Icons.schedule_outlined, 'Hora', formatShortDateTime(saleAt)),
+                    if ('${sale['service_notes'] ?? ''}'.trim().isNotEmpty)
+                      _detailLine(context, Icons.note_alt_outlined, 'Notas', '${sale['service_notes']}'),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text(
-                        copCurrency.format(amount),
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
+                      child: Text(copCurrency.format(amount), style: Theme.of(context).textTheme.headlineSmall),
                     ),
                   ],
                 ),
               ),
             );
           }),
-          if (_movements.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 8),
-              child: Text('Movimientos manuales', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 16),
+          Text('Movimientos manuales', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (_movements.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No hay ingresos extras ni gastos manuales registrados hoy.'),
+              ),
             ),
           ..._movements.map((movement) {
             final isExpense = '${movement['type']}' == 'expense';
             final amount = (movement['amount'] as num).toDouble();
             return Card(
               child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                leading: CircleAvatar(
+                  backgroundColor: isExpense
+                      ? Theme.of(context).colorScheme.errorContainer
+                      : Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(isExpense ? Icons.trending_down_outlined : Icons.trending_up_outlined),
+                ),
                 title: Text('${movement['concept']}'),
-                subtitle: Text('${isExpense ? 'Gasto / salida' : 'Ingreso extra'} • ${movement['payment_method']} • ${formatShortDateTime(DateTime.parse('${movement['movement_at']}'))}'),
+                subtitle: Text(
+                  '${isExpense ? 'Gasto / salida' : 'Ingreso extra'} • ${movement['payment_method']} • ${formatShortDateTime(DateTime.parse('${movement['movement_at']}'))}',
+                ),
                 trailing: PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'edit') {
@@ -443,6 +514,20 @@ class _CashPageState extends State<CashPage> {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailLine(BuildContext context, IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(child: Text('$label: $value')),
         ],
       ),
     );

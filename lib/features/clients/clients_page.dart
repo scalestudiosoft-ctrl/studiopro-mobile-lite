@@ -77,6 +77,8 @@ class _ClientsPageState extends State<ClientsPage> {
     _notesController.clear();
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Cliente guardado correctamente.');
   }
 
   List<Map<String, Object?>> get _filteredClients {

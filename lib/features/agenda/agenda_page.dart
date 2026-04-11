@@ -25,6 +25,8 @@ class _AgendaPageState extends State<AgendaPage> {
   String? _selectedWorkerId;
   String? _selectedServiceCode;
   DateTime _scheduledAt = DateTime.now().add(const Duration(minutes: 30));
+  DateTime _selectedDay = DateTime.now();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -36,31 +38,30 @@ class _AgendaPageState extends State<AgendaPage> {
   @override
   void dispose() {
     AppSyncBus.changes.removeListener(_onDataChanged);
+    _notesController.dispose();
     super.dispose();
   }
 
   void _onDataChanged() {
-    if (mounted) _load();
+    if (mounted) {
+      _load();
+    }
   }
+
+  String get _selectedDayText => formatDateOnly(_selectedDay);
 
   Future<void> _load() async {
     final db = AppDatabase.instance;
     final appointments = await db.queryRaw(
-      'SELECT * FROM appointments ORDER BY scheduled_at ASC',
+      'SELECT * FROM appointments WHERE substr(scheduled_at, 1, 10) = ? ORDER BY scheduled_at ASC',
+      <Object?>[_selectedDayText],
     );
     final clients = await db.queryAll('clients', orderBy: 'name ASC');
     final workers = await db.queryAll('workers', orderBy: 'name ASC');
     final services = await db.queryAll('service_catalog', orderBy: 'name ASC');
     if (!mounted) return;
     setState(() {
-      _appointments = appointments.where((row) {
-        final raw = row['scheduled_at'];
-        if (raw == null) return false;
-        final date = DateTime.tryParse('$raw');
-        if (date == null) return false;
-        final today = DateTime.now();
-        return date.year == today.year && date.month == today.month && date.day == today.day;
-      }).toList();
+      _appointments = appointments;
       _clients = clients;
       _workers = workers;
       _services = services;
@@ -74,58 +75,86 @@ class _AgendaPageState extends State<AgendaPage> {
     final date = await showDatePicker(
       context: context,
       initialDate: _scheduledAt,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_scheduledAt));
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_scheduledAt),
+    );
     if (time == null) return;
     setState(() {
       _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
+  Future<void> _pickSelectedDay() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDay,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    setState(() {
+      _selectedDay = DateTime(date.year, date.month, date.day);
+    });
+    await _load();
+  }
+
   Future<void> _saveAppointment() async {
     if (_selectedClientId == null || _selectedServiceCode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente y servicio son obligatorios.')));
+      _showMessage('Cliente y servicio son obligatorios.');
       return;
     }
-    final client = _clients.firstWhere((row) => '${row['id']}' == _selectedClientId);
-    Map<String, Object?>? worker;
-    for (final row in _workers) {
-      if ('${row['id']}' == _selectedWorkerId) {
-        worker = row;
-        break;
+    setState(() => _saving = true);
+    final savedAt = _scheduledAt;
+    try {
+      final client = _clients.firstWhere((row) => '${row['id']}' == _selectedClientId);
+      Map<String, Object?>? worker;
+      for (final row in _workers) {
+        if ('${row['id']}' == _selectedWorkerId) {
+          worker = row;
+          break;
+        }
+      }
+      Map<String, Object?>? service;
+      for (final row in _services) {
+        if ('${row['code']}' == _selectedServiceCode) {
+          service = row;
+          break;
+        }
+      }
+      await AppDatabase.instance.insert('appointments', <String, Object?>{
+        'id': 'APT-${const Uuid().v4()}',
+        'client_id': client['id'],
+        'client_name': client['name'],
+        'worker_id': worker?['id'],
+        'worker_name': worker?['name'],
+        'service_code': service?['code'],
+        'service_name': service?['name'],
+        'scheduled_at': _scheduledAt.toIso8601String(),
+        'status': 'pendiente',
+        'notes': _notesController.text.trim(),
+      });
+      _notesController.clear();
+      setState(() {
+        _selectedDay = DateTime(_scheduledAt.year, _scheduledAt.month, _scheduledAt.day);
+        _scheduledAt = DateTime.now().add(const Duration(minutes: 30));
+        if (_services.isNotEmpty) {
+          _selectedServiceCode = '${_services.first['code']}';
+        }
+      });
+      AppSyncBus.bump();
+      await _load();
+      if (!mounted) return;
+      _showMessage('Cita guardada para ${client['name']} el ${formatShortDateTime(savedAt)}.');
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
       }
     }
-    Map<String, Object?>? service;
-    for (final row in _services) {
-      if ('${row['code']}' == _selectedServiceCode) {
-        service = row;
-        break;
-      }
-    }
-    await AppDatabase.instance.insert('appointments', <String, Object?>{
-      'id': 'APT-${const Uuid().v4()}',
-      'client_id': client['id'],
-      'client_name': client['name'],
-      'worker_id': worker?['id'],
-      'worker_name': worker?['name'],
-      'service_code': service?['code'],
-      'service_name': service?['name'],
-      'scheduled_at': _scheduledAt.toIso8601String(),
-      'status': 'pendiente',
-      'notes': _notesController.text.trim(),
-    });
-    _notesController.clear();
-    _scheduledAt = DateTime.now().add(const Duration(minutes: 30));
-    if (_services.isNotEmpty) {
-      _selectedServiceCode = '${_services.first['code']}';
-    }
-    AppSyncBus.bump();
-    await _load();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cita guardada correctamente.')));
   }
 
   Future<void> _updateStatus(Map<String, Object?> row, String newStatus) async {
@@ -157,7 +186,9 @@ class _AgendaPageState extends State<AgendaPage> {
                   value: workerId,
                   items: <DropdownMenuItem<String?>>[
                     const DropdownMenuItem<String?>(value: null, child: Text('Sin asignar')),
-                    ..._workers.map((item) => DropdownMenuItem<String?>(value: '${item['id']}', child: Text('${item['name']}'))),
+                    ..._workers.map(
+                      (item) => DropdownMenuItem<String?>(value: '${item['id']}', child: Text('${item['name']}')),
+                    ),
                   ],
                   onChanged: (value) => setModalState(() => workerId = value),
                   decoration: const InputDecoration(labelText: 'Profesional'),
@@ -165,7 +196,9 @@ class _AgendaPageState extends State<AgendaPage> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String?>(
                   value: serviceCode,
-                  items: _services.map((item) => DropdownMenuItem<String?>(value: '${item['code']}', child: Text('${item['name']}'))).toList(),
+                  items: _services
+                      .map((item) => DropdownMenuItem<String?>(value: '${item['code']}', child: Text('${item['name']}')))
+                      .toList(),
                   onChanged: (value) => setModalState(() => serviceCode = value),
                   decoration: const InputDecoration(labelText: 'Servicio'),
                 ),
@@ -175,11 +208,14 @@ class _AgendaPageState extends State<AgendaPage> {
                     final date = await showDatePicker(
                       context: context,
                       initialDate: scheduledAt,
-                      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                      firstDate: DateTime.now().subtract(const Duration(days: 30)),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
                     if (date == null || !context.mounted) return;
-                    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(scheduledAt));
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(scheduledAt),
+                    );
                     if (time == null) return;
                     setModalState(() {
                       scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -226,6 +262,8 @@ class _AgendaPageState extends State<AgendaPage> {
     );
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Cita actualizada correctamente.');
   }
 
   Future<void> _deleteAppointment(Map<String, Object?> row) async {
@@ -244,12 +282,30 @@ class _AgendaPageState extends State<AgendaPage> {
     await AppDatabase.instance.delete('appointments', where: 'id = ?', whereArgs: <Object?>[row['id']]);
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Cita eliminada.');
   }
 
   void _goToService(Map<String, Object?> row) {
-    context.push(
-      '/new-service?appointmentId=${Uri.encodeComponent('${row['id']}')}',
-    );
+    context.push('/new-service?appointmentId=${Uri.encodeComponent('${row['id']}')}');
+  }
+
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Color _statusColor(BuildContext context, String status) {
+    switch (status) {
+      case 'finalizado':
+        return Theme.of(context).colorScheme.primaryContainer;
+      case 'cancelado':
+        return Theme.of(context).colorScheme.errorContainer;
+      case 'en proceso':
+      case 'llego':
+        return Theme.of(context).colorScheme.secondaryContainer;
+      default:
+        return Theme.of(context).colorScheme.surfaceContainerHighest;
+    }
   }
 
   @override
@@ -267,11 +323,66 @@ class _AgendaPageState extends State<AgendaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text('Citas de ${formatShortDate(_selectedDay)}', style: Theme.of(context).textTheme.titleMedium),
+                              const SizedBox(height: 4),
+                              Text('${_appointments.length} programadas • ${_appointments.where((e) => '${e['status']}' == 'pendiente').length} pendientes'),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _pickSelectedDay,
+                          icon: const Icon(Icons.calendar_today_outlined),
+                          label: const Text('Cambiar día'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        FilterChip(
+                          label: const Text('Hoy'),
+                          selected: formatDateOnly(DateTime.now()) == _selectedDayText,
+                          onSelected: (_) async {
+                            setState(() => _selectedDay = DateTime.now());
+                            await _load();
+                          },
+                        ),
+                        FilterChip(
+                          label: const Text('Mañana'),
+                          selected: formatDateOnly(DateTime.now().add(const Duration(days: 1))) == _selectedDayText,
+                          onSelected: (_) async {
+                            setState(() => _selectedDay = DateTime.now().add(const Duration(days: 1)));
+                            await _load();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     Text('Nueva cita', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedClientId,
-                      items: _clients.map((row) => DropdownMenuItem<String>(value: '${row['id']}', child: Text('${row['name']} • ${row['phone']}'))).toList(),
+                      items: _clients
+                          .map((row) => DropdownMenuItem<String>(value: '${row['id']}', child: Text('${row['name']} • ${row['phone']}')))
+                          .toList(),
                       onChanged: (value) => setState(() => _selectedClientId = value),
                       decoration: const InputDecoration(labelText: 'Cliente'),
                     ),
@@ -288,7 +399,9 @@ class _AgendaPageState extends State<AgendaPage> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
                       value: _selectedServiceCode,
-                      items: _services.map((row) => DropdownMenuItem<String?>(value: '${row['code']}', child: Text('${row['name']}'))).toList(),
+                      items: _services
+                          .map((row) => DropdownMenuItem<String?>(value: '${row['code']}', child: Text('${row['name']}')))
+                          .toList(),
                       onChanged: (value) => setState(() => _selectedServiceCode = value),
                       decoration: const InputDecoration(labelText: 'Servicio'),
                     ),
@@ -303,12 +416,18 @@ class _AgendaPageState extends State<AgendaPage> {
                     const SizedBox(height: 12),
                     TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')),
                     const SizedBox(height: 12),
-                    Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _saveAppointment, child: const Text('Guardar cita'))),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.icon(
+                        onPressed: _saving ? null : _saveAppointment,
+                        icon: const Icon(Icons.save_outlined),
+                        label: Text(_saving ? 'Guardando...' : 'Guardar cita'),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-
             if (_clients.isEmpty || _workers.isEmpty || _services.isEmpty) ...<Widget>[
               const SizedBox(height: 12),
               Wrap(
@@ -322,46 +441,83 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
             ],
             const SizedBox(height: 16),
-            Text('Citas del día', style: Theme.of(context).textTheme.titleMedium),
+            Text('Agenda del día seleccionado', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            ..._appointments.map(
-              (row) => Card(
-                child: ListTile(
-                  title: Text('${row['client_name']} • ${row['service_name'] ?? 'Servicio'}'),
-                  subtitle: Text(
-                    '${formatShortTime(DateTime.parse('${row['scheduled_at']}'))} • ${row['worker_name'] ?? 'Sin asignar'}\n${row['notes'] ?? ''}',
-                  ),
-                  isThreeLine: true,
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (AppConstants.appointmentStatuses.contains(value)) {
-                        _updateStatus(row, value);
-                      } else if (value == 'service') {
-                        _goToService(row);
-                      } else if (value == 'edit') {
-                        _editAppointment(row);
-                      } else if (value == 'delete') {
-                        _deleteAppointment(row);
-                      }
-                    },
-                    itemBuilder: (context) => <PopupMenuEntry<String>>[
-                      ...AppConstants.appointmentStatuses
-                          .map((status) => PopupMenuItem<String>(value: status, child: Text('Estado: $status'))),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem<String>(value: 'service', child: Text('Pasar a servicio')),
-                      const PopupMenuItem<String>(value: 'edit', child: Text('Editar cita')),
-                      const PopupMenuItem<String>(value: 'delete', child: Text('Eliminar cita')),
+            ..._appointments.map((row) {
+              final status = '${row['status'] ?? 'pendiente'}';
+              final scheduledAt = DateTime.parse('${row['scheduled_at']}');
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              '${row['client_name']} • ${row['service_name'] ?? 'Servicio'}',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _statusColor(context, status),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(status),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Hora: ${formatShortTime(scheduledAt)}'),
+                      Text('Profesional: ${row['worker_name'] ?? 'Sin asignar'}'),
+                      if ('${row['notes'] ?? ''}'.trim().isNotEmpty) Text('Notas: ${row['notes']}'),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          FilledButton.tonalIcon(
+                            onPressed: () => _goToService(row),
+                            icon: const Icon(Icons.point_of_sale_outlined),
+                            label: const Text('Pasar a servicio'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _editAppointment(row),
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar'),
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (AppConstants.appointmentStatuses.contains(value)) {
+                                _updateStatus(row, value);
+                              } else if (value == 'delete') {
+                                _deleteAppointment(row);
+                              }
+                            },
+                            itemBuilder: (context) => <PopupMenuEntry<String>>[
+                              ...AppConstants.appointmentStatuses.map(
+                                (statusValue) => PopupMenuItem<String>(value: statusValue, child: Text('Estado: $statusValue')),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem<String>(value: 'delete', child: Text('Eliminar cita')),
+                            ],
+                            child: const Chip(label: Text('Más acciones')),
+                          ),
+                        ],
+                      ),
                     ],
-                    child: Chip(label: Text('${row['status']}')),
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
             if (_appointments.isEmpty)
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('No hay citas registradas hoy.'),
+                  child: Text('No hay citas registradas para este día.'),
                 ),
               ),
           ],

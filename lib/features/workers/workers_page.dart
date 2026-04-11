@@ -74,6 +74,8 @@ class _WorkersPageState extends State<WorkersPage> {
     _commissionController.text = '40';
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Profesional guardado correctamente.');
   }
 
   Future<void> _editWorker(Map<String, Object?> worker) async {
