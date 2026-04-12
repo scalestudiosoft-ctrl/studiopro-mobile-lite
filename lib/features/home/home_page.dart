@@ -68,89 +68,83 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final warnings = <String>[...?_validation?.blockingIssues, ...?_validation?.warnings];
+
     return AppShell(
       title: _businessName,
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: <Widget>[
-            Text('Operación de hoy', style: Theme.of(context).textTheme.titleLarge),
+            _HeroPanel(
+              businessName: _businessName,
+              cashOpen: _cashOpen,
+              salesTotal: _salesTotal,
+              onPrimaryTap: () => context.go(_cashOpen ? '/cash' : '/cash'),
+              onSecondaryTap: () => context.go('/closing'),
+            ),
+            const SizedBox(height: 16),
+            Text('Resumen de hoy', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
+            GridView.count(
+              crossAxisCount: MediaQuery.of(context).size.width > 700 ? 4 : 2,
+              childAspectRatio: 1.35,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               children: <Widget>[
-                SizedBox(width: 220, child: InfoCard(title: 'Caja', value: _cashOpen ? 'Abierta' : 'Cerrada', subtitle: formatShortDate(DateTime.now()))),
-                SizedBox(width: 220, child: InfoCard(title: 'Vendido hoy', value: copCurrency.format(_salesTotal))),
-                SizedBox(width: 220, child: InfoCard(title: 'Servicios', value: '$_servicesCount')),
-                SizedBox(width: 220, child: InfoCard(title: 'Citas del día', value: '$_appointmentsCount', subtitle: 'Clientes registrados: $_clientsCount')),
+                InfoCard(title: 'Caja', value: _cashOpen ? 'Abierta' : 'Cerrada', subtitle: formatShortDate(DateTime.now())),
+                InfoCard(title: 'Vendido hoy', value: copCurrency.format(_salesTotal)),
+                InfoCard(title: 'Servicios', value: '$_servicesCount'),
+                InfoCard(title: 'Citas', value: '$_appointmentsCount', subtitle: 'Clientes: $_clientsCount'),
               ],
             ),
             if (warnings.isNotEmpty) ...<Widget>[
               const SizedBox(height: 16),
-              Card(
-                color: Theme.of(context).colorScheme.tertiaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('Pendientes para operar mejor', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      ...warnings.take(3).map((warning) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Text('• $warning'),
-                          )),
-                    ],
-                  ),
-                ),
+              _CalloutCard(
+                title: 'Pendientes por revisar',
+                icon: Icons.warning_amber_rounded,
+                tone: const Color(0xFFFFF3DB),
+                items: warnings.take(3).toList(),
               ),
             ],
             const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('Accesos rápidos', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: <Widget>[
-                        FilledButton.icon(onPressed: () => context.go('/catalog'), icon: const Icon(Icons.add), label: const Text('Servicios')),
-                        OutlinedButton.icon(onPressed: () => context.go('/agenda'), icon: const Icon(Icons.event_note), label: const Text('Agenda')),
-                        OutlinedButton.icon(onPressed: () => context.go('/cash'), icon: const Icon(Icons.payments), label: const Text('Caja')),
-                        OutlinedButton.icon(onPressed: () => context.go('/closing'), icon: const Icon(Icons.task_alt), label: const Text('Cerrar día')),
-                        OutlinedButton.icon(onPressed: () => context.push('/workers'), icon: const Icon(Icons.badge_outlined), label: const Text('Profesionales')),
-                        OutlinedButton.icon(onPressed: () => context.push('/clients'), icon: const Icon(Icons.people_outline), label: const Text('Clientes')),
-                        OutlinedButton.icon(onPressed: () => context.push('/catalog'), icon: const Icon(Icons.content_cut_outlined), label: const Text('Servicios')),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            Text('Acciones rápidas', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: MediaQuery.of(context).size.width > 700 ? 3 : 2,
+              childAspectRatio: 1.45,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: <Widget>[
+                _QuickActionTile(icon: Icons.content_cut_rounded, title: 'Servicios', subtitle: 'Catálogo y precios base', onTap: () => context.go('/catalog')),
+                _QuickActionTile(icon: Icons.event_note_rounded, title: 'Agenda', subtitle: 'Programa citas del día', onTap: () => context.go('/agenda')),
+                _QuickActionTile(icon: Icons.payments_rounded, title: 'Caja', subtitle: 'Abre, factura y controla', onTap: () => context.go('/cash')),
+                _QuickActionTile(icon: Icons.task_alt_rounded, title: 'Cierre', subtitle: 'Valida y exporta JSON', onTap: () => context.go('/closing')),
+                _QuickActionTile(icon: Icons.badge_rounded, title: 'Profesionales', subtitle: 'Equipo activo del negocio', onTap: () => context.push('/workers')),
+                _QuickActionTile(icon: Icons.people_alt_rounded, title: 'Clientes', subtitle: 'Base de clientes y ficha', onTap: () => context.push('/clients')),
+              ],
             ),
             const SizedBox(height: 16),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text('Flujo correcto del día', style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '1. Configura negocio, profesionales, clientes y catálogo.\n'
-                      '2. Abre caja.\n'
-                      '3. Registra citas o servicios.\n'
-                      '4. Cada servicio debe facturar a un cliente, quedar ligado a un profesional y afectar ventas/caja.\n'
-                      '5. Revisa el cierre y exporta el JSON por WhatsApp.',
-                    ),
-                    const SizedBox(height: 12),
+                    Text('Flujo operativo recomendado', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 14),
+                    const _StepRow(index: 1, text: 'Configura negocio, profesionales, clientes y catálogo.'),
+                    const _StepRow(index: 2, text: 'Abre caja antes de empezar a cobrar.'),
+                    const _StepRow(index: 3, text: 'Registra citas o servicios con cliente y profesional.'),
+                    const _StepRow(index: 4, text: 'Cada servicio debe facturar y afectar ventas/caja.'),
+                    const _StepRow(index: 5, text: 'Cierra el día y comparte el JSON por WhatsApp.'),
+                    const SizedBox(height: 14),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -167,6 +161,224 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HeroPanel extends StatelessWidget {
+  const _HeroPanel({
+    required this.businessName,
+    required this.cashOpen,
+    required this.salesTotal,
+    required this.onPrimaryTap,
+    required this.onSecondaryTap,
+  });
+
+  final String businessName;
+  final bool cashOpen;
+  final double salesTotal;
+  final VoidCallback onPrimaryTap;
+  final VoidCallback onSecondaryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          colors: <Color>[Color(0xFF1F1637), Color(0xFF6D28D9)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            blurRadius: 30,
+            offset: Offset(0, 12),
+            color: Color(0x22000000),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              cashOpen ? 'Caja activa' : 'Caja pendiente',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            businessName,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Administra agenda, catálogo, caja y cierre diario desde un solo lugar.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.85)),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            copCurrency.format(salesTotal),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Venta acumulada hoy',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withOpacity(0.82)),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: FilledButton(
+                  onPressed: onPrimaryTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF4C1D95),
+                  ),
+                  child: Text(cashOpen ? 'Ir a caja' : 'Abrir caja'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onSecondaryTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withOpacity(0.35)),
+                  ),
+                  child: const Text('Revisar cierre'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalloutCard extends StatelessWidget {
+  const _CalloutCard({
+    required this.title,
+    required this.icon,
+    required this.tone,
+    required this.items,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color tone;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: tone,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(icon),
+                const SizedBox(width: 10),
+                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('• $item'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1ECFB),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: const Color(0xFF5B21B6)),
+              ),
+              const Spacer(),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.index, required this.text});
+
+  final int index;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1ECFB),
+              shape: BoxShape.circle,
+            ),
+            child: Text('$index', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF5B21B6))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
       ),
     );
   }
