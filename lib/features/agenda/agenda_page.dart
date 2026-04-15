@@ -18,6 +18,7 @@ class AgendaPage extends StatefulWidget {
 class _AgendaPageState extends State<AgendaPage> {
   final TextEditingController _notesController = TextEditingController();
   List<Map<String, Object?>> _appointments = const <Map<String, Object?>>[];
+  List<Map<String, Object?>> _upcomingAppointments = const <Map<String, Object?>>[];
   List<Map<String, Object?>> _clients = const <Map<String, Object?>>[];
   List<Map<String, Object?>> _workers = const <Map<String, Object?>>[];
   List<Map<String, Object?>> _services = const <Map<String, Object?>>[];
@@ -54,18 +55,32 @@ class _AgendaPageState extends State<AgendaPage> {
       'SELECT * FROM appointments WHERE substr(scheduled_at, 1, 10) = ? ORDER BY scheduled_at ASC',
       <Object?>[_selectedDayText],
     );
+    final todayAppointments = await db.queryRaw(
+      '''
+      SELECT * FROM appointments
+      WHERE substr(scheduled_at, 1, 10) = ?
+        AND status NOT IN ('finalizado', 'cancelado')
+      ORDER BY scheduled_at ASC
+      ''',
+      <Object?>[formatDateOnly(DateTime.now())],
+    );
     final clients = await db.queryAll('clients', orderBy: 'name ASC');
     final workers = await db.queryWhere('workers', where: 'active = ?', whereArgs: <Object?>[1], orderBy: 'name ASC');
     final services = await db.queryWhere('service_catalog', where: 'active = ?', whereArgs: <Object?>[1], orderBy: 'name ASC');
+    final now = DateTime.now();
+    final upcoming = todayAppointments.where((row) {
+      final scheduledAt = DateTime.tryParse('${row['scheduled_at']}');
+      if (scheduledAt == null) return false;
+      final diff = scheduledAt.difference(now).inMinutes;
+      return diff <= 60 && diff >= -20;
+    }).toList();
     if (!mounted) return;
     setState(() {
       _appointments = appointments;
+      _upcomingAppointments = upcoming;
       _clients = clients;
       _workers = workers;
       _services = services;
-      _selectedClientId ??= clients.isEmpty ? null : '${clients.first['id']}';
-      _selectedWorkerId ??= workers.isEmpty ? null : '${workers.first['id']}';
-      _selectedServiceCode ??= services.isEmpty ? null : '${services.first['code']}';
     });
   }
 
@@ -276,6 +291,10 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   void _goToCash(Map<String, Object?> row) {
+    if ('${row['status']}' == 'finalizado' || '${row['status']}' == 'cancelado') {
+      _showMessage('Esta cita ya no se puede pasar a caja.');
+      return;
+    }
     context.push('/cash?appointmentId=${Uri.encodeComponent('${row['id']}')}');
   }
 
@@ -306,6 +325,13 @@ class _AgendaPageState extends State<AgendaPage> {
     }
   }
 
+  String _upcomingLabel(DateTime scheduledAt) {
+    final diff = scheduledAt.difference(DateTime.now()).inMinutes;
+    if (diff < 0) return 'Atrasada ${diff.abs()} min';
+    if (diff == 0) return 'Es ahora';
+    return 'En $diff min';
+  }
+
   @override
   Widget build(BuildContext context) {
     final days = <DateTime>[
@@ -321,6 +347,29 @@ class _AgendaPageState extends State<AgendaPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
+            if (_upcomingAppointments.isNotEmpty) ...<Widget>[
+              Card(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('Citas cercanas de atender', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      ..._upcomingAppointments.take(3).map((row) {
+                        final scheduledAt = DateTime.parse('${row['scheduled_at']}');
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text('• ${row['client_name']} · ${row['service_name'] ?? 'Servicio'} · ${_upcomingLabel(scheduledAt)}'),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -360,7 +409,7 @@ class _AgendaPageState extends State<AgendaPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')), 
+                    TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -450,7 +499,7 @@ class _AgendaPageState extends State<AgendaPage> {
                         runSpacing: 8,
                         children: <Widget>[
                           FilledButton.tonalIcon(
-                            onPressed: () => _goToCash(row),
+                            onPressed: (status == 'finalizado' || status == 'cancelado') ? null : () => _goToCash(row),
                             icon: const Icon(Icons.point_of_sale_outlined),
                             label: const Text('Pasar a caja'),
                           ),

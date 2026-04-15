@@ -18,6 +18,7 @@ class _ClientsPageState extends State<ClientsPage> {
   final _phoneController = TextEditingController();
   final _notesController = TextEditingController();
   final _searchController = TextEditingController();
+  DateTime? _birthday;
   List<Map<String, Object?>> _clients = const <Map<String, Object?>>[];
   Map<String, Map<String, Object?>> _stats = <String, Map<String, Object?>>{};
   String _search = '';
@@ -26,12 +27,17 @@ class _ClientsPageState extends State<ClientsPage> {
   void initState() {
     super.initState();
     AppSyncBus.changes.addListener(_onDataChanged);
+    _searchController.addListener(() => setState(() => _search = _searchController.text));
     _load();
   }
 
   @override
   void dispose() {
     AppSyncBus.changes.removeListener(_onDataChanged);
+    _nameController.dispose();
+    _phoneController.dispose();
+    _notesController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -61,6 +67,17 @@ class _ClientsPageState extends State<ClientsPage> {
     });
   }
 
+  Future<void> _pickBirthday({DateTime? initialDate, required ValueChanged<DateTime?> onSelected}) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate ?? DateTime(1995, 1, 1),
+      firstDate: DateTime(1930),
+      lastDate: DateTime.now(),
+    );
+    if (!mounted) return;
+    onSelected(picked == null ? initialDate : DateTime(picked.year, picked.month, picked.day));
+  }
+
   Future<void> _save() async {
     if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
       _showMessage('Nombre y teléfono son obligatorios.');
@@ -71,10 +88,12 @@ class _ClientsPageState extends State<ClientsPage> {
       'name': _nameController.text.trim(),
       'phone': _phoneController.text.trim(),
       'notes': _notesController.text.trim(),
+      'birthday': _birthday?.toIso8601String(),
     });
     _nameController.clear();
     _phoneController.clear();
     _notesController.clear();
+    _birthday = null;
     AppSyncBus.bump();
     await _load();
     if (!mounted) return;
@@ -95,26 +114,37 @@ class _ClientsPageState extends State<ClientsPage> {
     final nameController = TextEditingController(text: '${client['name'] ?? ''}');
     final phoneController = TextEditingController(text: '${client['phone'] ?? ''}');
     final notesController = TextEditingController(text: '${client['notes'] ?? ''}');
+    DateTime? birthday = client['birthday'] == null || '${client['birthday']}'.isEmpty ? null : DateTime.tryParse('${client['birthday']}');
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar cliente'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre')),
-              const SizedBox(height: 12),
-              TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Teléfono')),
-              const SizedBox(height: 12),
-              TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notas')),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Editar cliente'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre')),
+                const SizedBox(height: 12),
+                TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Teléfono')),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => _pickBirthday(initialDate: birthday, onSelected: (value) => setModalState(() => birthday = value)),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Cumpleaños'),
+                    child: Text(birthday == null ? 'Sin fecha registrada' : formatDateOnly(birthday!)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Notas')),
+              ],
+            ),
           ),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Guardar')),
+          ],
         ),
-        actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Guardar')),
-        ],
       ),
     );
     if (saved != true) return;
@@ -124,78 +154,18 @@ class _ClientsPageState extends State<ClientsPage> {
         'name': nameController.text.trim(),
         'phone': phoneController.text.trim(),
         'notes': notesController.text.trim(),
+        'birthday': birthday?.toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: <Object?>[client['id']],
     );
     AppSyncBus.bump();
     await _load();
-  }
-
-  Future<void> _showHistory(Map<String, Object?> client) async {
-    final rows = await AppDatabase.instance.queryWhere(
-      'service_records',
-      where: 'client_id = ?',
-      whereArgs: <Object?>[client['id']],
-      orderBy: 'performed_at DESC',
-      limit: 20,
-    );
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text('Historial de ${client['name']}', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text('Teléfono: ${client['phone']}'),
-              if ('${client['notes']}'.trim().isNotEmpty) ...<Widget>[
-                const SizedBox(height: 4),
-                Text('Notas: ${client['notes']}'),
-              ],
-              const SizedBox(height: 12),
-              Flexible(
-                child: rows.isEmpty
-                    ? const Text('Este cliente todavía no tiene servicios registrados.')
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: rows.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final row = rows[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text('${row['service_name']} • ${row['worker_name']}'),
-                            subtitle: Text(formatShortDateTime(DateTime.parse('${row['performed_at']}'))),
-                            trailing: Text(copCurrency.format((row['unit_price'] as num).toDouble())),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    _showMessage('Cliente actualizado correctamente.');
   }
 
   Future<void> _deleteClient(Map<String, Object?> client) async {
-    final serviceCount = (await AppDatabase.instance.queryWhere(
-      'service_records',
-      where: 'client_id = ?',
-      whereArgs: <Object?>[client['id']],
-      limit: 1,
-    ))
-        .length;
-    if (serviceCount > 0) {
-      _showMessage('No se puede eliminar un cliente con historial.');
-      return;
-    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -211,6 +181,8 @@ class _ClientsPageState extends State<ClientsPage> {
     await AppDatabase.instance.delete('clients', where: 'id = ?', whereArgs: <Object?>[client['id']]);
     AppSyncBus.bump();
     await _load();
+    if (!mounted) return;
+    _showMessage('Cliente eliminado.');
   }
 
   void _showMessage(String text) {
@@ -228,17 +200,25 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nombre del cliente')),
+                  Text('Nuevo cliente', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
-                  TextField(controller: _phoneController, decoration: const InputDecoration(labelText: 'Teléfono')),
+                  TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nombre completo')),
+                  const SizedBox(height: 12),
+                  TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Teléfono')),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () => _pickBirthday(initialDate: _birthday, onSelected: (value) => setState(() => _birthday = value)),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: 'Cumpleaños'),
+                      child: Text(_birthday == null ? 'Toca para registrar la fecha' : formatDateOnly(_birthday!)),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notas')),
                   const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(onPressed: _save, child: const Text('Guardar cliente')),
-                  ),
+                  SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.save_outlined), label: const Text('Guardar cliente'))),
                 ],
               ),
             ),
@@ -246,51 +226,64 @@ class _ClientsPageState extends State<ClientsPage> {
           const SizedBox(height: 16),
           TextField(
             controller: _searchController,
-            onChanged: (value) => setState(() => _search = value),
-            decoration: const InputDecoration(labelText: 'Buscar cliente', prefixIcon: Icon(Icons.search)),
+            decoration: const InputDecoration(labelText: 'Buscar por nombre o teléfono', prefixIcon: Icon(Icons.search)),
           ),
           const SizedBox(height: 16),
+          if (_filteredClients.isEmpty)
+            const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Todavía no hay clientes registrados.'))),
           ..._filteredClients.map((client) {
-            final stat = _stats['${client['id']}'];
-            final lastVisit = stat?['last_visit'];
-            final lastService = stat?['last_service'];
+            final stats = _stats['${client['id']}'];
+            final birthday = client['birthday'] == null || '${client['birthday']}'.isEmpty ? null : DateTime.tryParse('${client['birthday']}');
             return Card(
-              child: ListTile(
-                onTap: () => _showHistory(client),
-                title: Text('${client['name']}'),
-                subtitle: Text(
-                  '${client['phone']}\n'
-                  'Última visita: ${lastVisit == null ? 'Sin historial' : formatShortDateTime(DateTime.parse('$lastVisit'))}\n'
-                  'Último servicio: ${lastService ?? 'Sin registros'}',
-                ),
-                isThreeLine: true,
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'history') {
-                      _showHistory(client);
-                    } else if (value == 'edit') {
-                      _editClient(client);
-                    } else if (value == 'delete') {
-                      _deleteClient(client);
-                    }
-                  },
-                  itemBuilder: (context) => const <PopupMenuEntry<String>>[
-                    PopupMenuItem<String>(value: 'history', child: Text('Ver historial')),
-                    PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
-                    PopupMenuItem<String>(value: 'delete', child: Text('Eliminar')),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(child: Text('${client['name']}', style: Theme.of(context).textTheme.titleMedium)),
+                        PopupMenuButton<String>(
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              await _editClient(client);
+                            } else if (value == 'delete') {
+                              await _deleteClient(client);
+                            }
+                          },
+                          itemBuilder: (context) => const <PopupMenuEntry<String>>[
+                            PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
+                            PopupMenuItem<String>(value: 'delete', child: Text('Eliminar')),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Teléfono: ${client['phone']}'),
+                    if (birthday != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text('Cumpleaños: ${formatDateOnly(birthday)}'),
+                    ],
+                    if ('${client['notes'] ?? ''}'.trim().isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text('Notas: ${client['notes']}'),
+                    ],
+                    if (stats != null) ...<Widget>[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          Chip(label: Text('Visitas: ${stats['count'] ?? 0}')),
+                          if (stats['last_service'] != null) Chip(label: Text('Último servicio: ${stats['last_service']}')),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
-                leading: CircleAvatar(child: Text('${stat?['count'] ?? 0}')),
               ),
             );
           }),
-          if (_filteredClients.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No hay clientes que coincidan con la búsqueda.'),
-              ),
-            ),
         ],
       ),
     );

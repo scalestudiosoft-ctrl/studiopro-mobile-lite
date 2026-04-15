@@ -14,31 +14,18 @@ class InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              title.toUpperCase(),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: const Color(0xFF7D7593),
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.4,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
+            Text(title, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 6),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
             if (subtitle != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(subtitle!, style: theme.textTheme.bodySmall),
+              const SizedBox(height: 6),
+              Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
             ],
           ],
         ),

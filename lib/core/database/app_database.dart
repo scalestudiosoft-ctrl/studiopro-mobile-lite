@@ -25,7 +25,7 @@ class AppDatabase {
     final databasePath = p.join(directory.path, 'studio_pro_mobile.db');
     _db = await openDatabase(
       databasePath,
-      version: 2,
+      version: 5,
       onCreate: (db, version) async => runMigrations(db),
       onUpgrade: (db, oldVersion, newVersion) async => runMigrations(db),
       onOpen: (db) async => runMigrations(db),
@@ -45,6 +45,9 @@ class AppDatabase {
       ownerName: 'Administrador',
       deviceName: 'Android',
       defaultOpeningCash: 0,
+      primaryButtonColor: AppConstants.defaultPrimaryButtonColor,
+      secondaryButtonColor: AppConstants.defaultSecondaryButtonColor,
+      logoPath: null,
     );
     await db.insert('business_profile', profile.toMap());
   }

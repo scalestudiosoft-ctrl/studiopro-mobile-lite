@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,7 +9,7 @@ import '../../core/services/closing_export_service.dart';
 import '../../core/services/daily_operation_validator.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/app_shell.dart';
-import '../../shared/widgets/info_card.dart';
+import '../../shared/widgets/module_tile.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,7 +21,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ClosingExportService _closingExportService = const ClosingExportService();
   final DailyOperationValidator _validator = const DailyOperationValidator();
-  String _businessName = 'Mi Negocio';
+
+  String _businessName = 'Studio Pro';
+  String _businessType = 'barbershop';
+  String _city = '';
+  String? _logoPath;
   bool _cashOpen = false;
   double _salesTotal = 0;
   int _servicesCount = 0;
@@ -56,7 +62,10 @@ class _HomePageState extends State<HomePage> {
     final validation = await _validator.validateForDate(DateTime.now());
     if (!mounted) return;
     setState(() {
-      _businessName = '${business?['name'] ?? 'Mi Negocio'}';
+      _businessName = '${business?['name'] ?? 'Studio Pro'}';
+      _businessType = '${business?['business_type'] ?? 'barbershop'}';
+      _city = '${business?['city'] ?? ''}';
+      _logoPath = '${business?['logo_path'] ?? ''}'.trim().isEmpty ? null : '${business?['logo_path']}';
       _cashOpen = summary['session'] != null;
       _salesTotal = (summary['salesTotal'] as num).toDouble();
       _servicesCount = (summary['servicesCount'] as num).toInt();
@@ -66,10 +75,80 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  String get _segmentLabel {
+    switch (_businessType) {
+      case 'beauty_salon':
+        return 'Salón de belleza';
+      case 'nails_studio':
+        return 'Nails studio';
+      case 'spa':
+        return 'Spa';
+      default:
+        return 'Barbería';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final warnings = <String>[...?_validation?.blockingIssues, ...?_validation?.warnings];
+    final moduleTiles = <Widget>[
+      ModuleTile(
+        title: 'Caja',
+        subtitle: _cashOpen ? 'Registrar ventas y movimientos' : 'Abrir caja y empezar el día',
+        icon: Icons.point_of_sale_rounded,
+        tint: const Color(0xFF0F766E),
+        onTap: () => context.go('/cash'),
+      ),
+      ModuleTile(
+        title: 'Agenda',
+        subtitle: 'Citas del día y programación',
+        icon: Icons.event_note_rounded,
+        tint: const Color(0xFF2563EB),
+        onTap: () => context.go('/agenda'),
+      ),
+      ModuleTile(
+        title: 'Servicios',
+        subtitle: 'Catálogo con precio y duración',
+        icon: Icons.design_services_rounded,
+        tint: const Color(0xFF7C3AED),
+        onTap: () => context.go('/catalog'),
+      ),
+      ModuleTile(
+        title: 'Clientes',
+        subtitle: 'Base de clientes y seguimiento',
+        icon: Icons.people_alt_rounded,
+        tint: const Color(0xFFEA580C),
+        onTap: () => context.push('/clients'),
+      ),
+      ModuleTile(
+        title: 'Profesionales',
+        subtitle: 'Equipo, comisiones y control',
+        icon: Icons.badge_rounded,
+        tint: const Color(0xFF4F46E5),
+        onTap: () => context.push('/workers'),
+      ),
+      ModuleTile(
+        title: 'Cierre',
+        subtitle: 'Revisión diaria y exportación',
+        icon: Icons.task_alt_rounded,
+        tint: const Color(0xFFDC2626),
+        onTap: () => context.go('/closing'),
+      ),
+      ModuleTile(
+        title: 'Exportar',
+        subtitle: 'Historial y envío al escritorio',
+        icon: Icons.ios_share_rounded,
+        tint: const Color(0xFF0891B2),
+        onTap: () => context.push('/exports'),
+      ),
+      ModuleTile(
+        title: 'Configurar',
+        subtitle: 'Negocio y dispositivo',
+        icon: Icons.settings_rounded,
+        tint: const Color(0xFF64748B),
+        onTap: () => context.push('/settings'),
+      ),
+    ];
 
     return AppShell(
       title: _businessName,
@@ -78,87 +157,169 @@ class _HomePageState extends State<HomePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: <Widget>[
-            _HeroPanel(
-              businessName: _businessName,
-              cashOpen: _cashOpen,
-              salesTotal: _salesTotal,
-              onPrimaryTap: () => context.go(_cashOpen ? '/cash' : '/cash'),
-              onSecondaryTap: () => context.go('/closing'),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                gradient: const LinearGradient(
+                  colors: <Color>[Color(0xFF4B5563), Color(0xFF111827)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x1A111827),
+                    blurRadius: 24,
+                    offset: Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _BusinessLogoPreview(path: _logoPath),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              _businessName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '$_segmentLabel${_city.trim().isEmpty ? '' : ' • $_city'}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withOpacity(0.88),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: <Widget>[
+                      _HeroMetricChip(
+                        icon: _cashOpen ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                        label: _cashOpen ? 'Caja abierta' : 'Caja cerrada',
+                      ),
+                      _HeroMetricChip(icon: Icons.today_rounded, label: formatShortDate(DateTime.now())),
+                      _HeroMetricChip(icon: Icons.sell_rounded, label: '${_servicesCount} servicios'),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            Text('Resumen de hoy', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: MediaQuery.of(context).size.width > 700 ? 4 : 2,
-              childAspectRatio: 1.35,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
+            const SizedBox(height: 18),
+            Text(
+              'Módulos principales',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Todo lo importante del negocio a uno o dos toques.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 14),
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              itemCount: moduleTiles.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.98,
+              ),
+              itemBuilder: (context, index) => moduleTiles[index],
+            ),
+            const SizedBox(height: 18),
+            Row(
               children: <Widget>[
-                InfoCard(title: 'Caja', value: _cashOpen ? 'Abierta' : 'Cerrada', subtitle: formatShortDate(DateTime.now())),
-                InfoCard(title: 'Vendido hoy', value: copCurrency.format(_salesTotal)),
-                InfoCard(title: 'Servicios', value: '$_servicesCount'),
-                InfoCard(title: 'Citas', value: '$_appointmentsCount', subtitle: 'Clientes: $_clientsCount'),
+                Expanded(
+                  child: _QuickStatCard(
+                    title: 'Ventas hoy',
+                    value: copCurrency.format(_salesTotal),
+                    icon: Icons.payments_rounded,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickStatCard(
+                    title: 'Citas',
+                    value: '$_appointmentsCount',
+                    icon: Icons.schedule_rounded,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _QuickStatCard(
+                    title: 'Clientes',
+                    value: '$_clientsCount',
+                    icon: Icons.groups_rounded,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickStatCard(
+                    title: 'Servicios',
+                    value: '$_servicesCount',
+                    icon: Icons.content_cut_rounded,
+                  ),
+                ),
               ],
             ),
             if (warnings.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 16),
-              _CalloutCard(
-                title: 'Pendientes por revisar',
-                icon: Icons.warning_amber_rounded,
-                tone: const Color(0xFFFFF3DB),
-                items: warnings.take(3).toList(),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Text('Acciones rápidas', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: MediaQuery.of(context).size.width > 700 ? 3 : 2,
-              childAspectRatio: 1.45,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: <Widget>[
-                _QuickActionTile(icon: Icons.content_cut_rounded, title: 'Servicios', subtitle: 'Catálogo y precios base', onTap: () => context.go('/catalog')),
-                _QuickActionTile(icon: Icons.event_note_rounded, title: 'Agenda', subtitle: 'Programa citas del día', onTap: () => context.go('/agenda')),
-                _QuickActionTile(icon: Icons.payments_rounded, title: 'Caja', subtitle: 'Abre, factura y controla', onTap: () => context.go('/cash')),
-                _QuickActionTile(icon: Icons.task_alt_rounded, title: 'Cierre', subtitle: 'Valida y exporta JSON', onTap: () => context.go('/closing')),
-                _QuickActionTile(icon: Icons.badge_rounded, title: 'Profesionales', subtitle: 'Equipo activo del negocio', onTap: () => context.push('/workers')),
-                _QuickActionTile(icon: Icons.people_alt_rounded, title: 'Clientes', subtitle: 'Base de clientes y ficha', onTap: () => context.push('/clients')),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Flujo operativo recomendado', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 14),
-                    const _StepRow(index: 1, text: 'Configura negocio, profesionales, clientes y catálogo.'),
-                    const _StepRow(index: 2, text: 'Abre caja antes de empezar a cobrar.'),
-                    const _StepRow(index: 3, text: 'Registra citas o servicios con cliente y profesional.'),
-                    const _StepRow(index: 4, text: 'Cada servicio debe facturar y afectar ventas/caja.'),
-                    const _StepRow(index: 5, text: 'Cierra el día y comparte el JSON por WhatsApp.'),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    Row(
                       children: <Widget>[
-                        ActionChip(label: const Text('Configurar negocio'), onPressed: () => context.push('/settings')),
-                        ActionChip(label: const Text('Crear profesional'), onPressed: () => context.push('/workers')),
-                        ActionChip(label: const Text('Crear cliente'), onPressed: () => context.push('/clients')),
-                        ActionChip(label: const Text('Abrir caja'), onPressed: () => context.go('/cash')),
+                        const Icon(Icons.info_outline_rounded, color: Color(0xFF9A3412)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pendientes para operar mejor',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    ...warnings.take(4).map(
+                          (warning) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text('• $warning'),
+                          ),
+                        ),
                   ],
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -166,218 +327,98 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({
-    required this.businessName,
-    required this.cashOpen,
-    required this.salesTotal,
-    required this.onPrimaryTap,
-    required this.onSecondaryTap,
-  });
 
-  final String businessName;
-  final bool cashOpen;
-  final double salesTotal;
-  final VoidCallback onPrimaryTap;
-  final VoidCallback onSecondaryTap;
+class _BusinessLogoPreview extends StatelessWidget {
+  const _BusinessLogoPreview({required this.path});
+
+  final String? path;
+
+  @override
+  Widget build(BuildContext context) {
+    final logoPath = path;
+    if (logoPath == null || logoPath.isEmpty) {
+      return Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 34),
+      );
+    }
+    final file = File(logoPath);
+    if (!file.existsSync()) {
+      return Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(Icons.broken_image_rounded, color: Colors.white, size: 34),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Image.file(file, width: 64, height: 64, fit: BoxFit.cover),
+    );
+  }
+}
+
+class _HeroMetricChip extends StatelessWidget {
+  const _HeroMetricChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFF1F1637), Color(0xFF6D28D9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickStatCard extends StatelessWidget {
+  const _QuickStatCard({required this.title, required this.value, required this.icon});
+
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: const <BoxShadow>[
-          BoxShadow(
-            blurRadius: 30,
-            offset: Offset(0, 12),
-            color: Color(0x22000000),
-          ),
+          BoxShadow(color: Color(0x08000000), blurRadius: 16, offset: Offset(0, 8)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              cashOpen ? 'Caja activa' : 'Caja pendiente',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            businessName,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Administra agenda, catálogo, caja y cierre diario desde un solo lugar.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.85)),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            copCurrency.format(salesTotal),
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Venta acumulada hoy',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withOpacity(0.82)),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: FilledButton(
-                  onPressed: onPrimaryTap,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF4C1D95),
-                  ),
-                  child: Text(cashOpen ? 'Ir a caja' : 'Abrir caja'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onSecondaryTap,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withOpacity(0.35)),
-                  ),
-                  child: const Text('Revisar cierre'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CalloutCard extends StatelessWidget {
-  const _CalloutCard({
-    required this.title,
-    required this.icon,
-    required this.tone,
-    required this.items,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color tone;
-  final List<String> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: tone,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(icon),
-                const SizedBox(width: 10),
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...items.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('• $item'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickActionTile extends StatelessWidget {
-  const _QuickActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1ECFB),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: const Color(0xFF5B21B6)),
-              ),
-              const Spacer(),
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StepRow extends StatelessWidget {
-  const _StepRow({required this.index, required this.text});
-
-  final int index;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF1ECFB),
-              shape: BoxShape.circle,
-            ),
-            child: Text('$index', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF5B21B6))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text)),
+          Icon(icon, color: const Color(0xFF374151)),
+          const SizedBox(height: 12),
+          Text(title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B7280))),
+          const SizedBox(height: 6),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
         ],
       ),
     );

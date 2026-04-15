@@ -1,81 +1,74 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildStudioTheme() {
-  const seed = Color(0xFF6D28D9);
-  const background = Color(0xFFF6F4FB);
-  const surface = Colors.white;
-  const ink = Color(0xFF1F1637);
-  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
+Color colorFromHex(String value) {
+  final normalized = value.replaceAll('#', '').trim();
+  final hex = normalized.length == 6 ? 'FF$normalized' : normalized;
+  return Color(int.parse(hex, radix: 16));
+}
 
-  final baseText = Typography.material2021().black.apply(
-        bodyColor: ink,
-        displayColor: ink,
-      );
+ThemeData buildStudioTheme() {
+  const primary = Color(0xFF374151);
+  const secondary = Color(0xFF6B7280);
+  final scheme = ColorScheme.fromSeed(seedColor: primary, brightness: Brightness.light).copyWith(
+    primary: primary,
+    secondary: secondary,
+    surface: Colors.white,
+  );
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: background,
-    textTheme: baseText.copyWith(
-      headlineMedium: baseText.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
-      headlineSmall: baseText.headlineSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
-      titleLarge: baseText.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-      titleMedium: baseText.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-      titleSmall: baseText.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-      bodyLarge: baseText.bodyLarge?.copyWith(height: 1.35),
-      bodyMedium: baseText.bodyMedium?.copyWith(height: 1.35),
-      bodySmall: baseText.bodySmall?.copyWith(height: 1.3, color: const Color(0xFF665F7A)),
-      labelLarge: baseText.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-    ),
-    appBarTheme: AppBarTheme(
+    scaffoldBackgroundColor: const Color(0xFFF5F5F7),
+    fontFamily: 'Roboto',
+    appBarTheme: const AppBarTheme(
       centerTitle: false,
       elevation: 0,
-      backgroundColor: background,
-      foregroundColor: ink,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Color(0xFF111827),
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: baseText.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: ink),
-    ),
-    cardTheme: CardThemeData(
-      color: surface,
-      elevation: 0,
-      shadowColor: Colors.black.withOpacity(0.05),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-        side: const BorderSide(color: Color(0xFFE8E3F3)),
+      titleTextStyle: TextStyle(
+        color: Color(0xFF111827),
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
       ),
-      margin: EdgeInsets.zero,
     ),
-    dividerColor: const Color(0xFFE8E3F3),
+    cardTheme: const CardThemeData(
+      color: Colors.white,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shadowColor: Color(0x12000000),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+    ),
     chipTheme: ChipThemeData(
-      backgroundColor: scheme.primaryContainer,
-      selectedColor: scheme.primaryContainer,
-      secondarySelectedColor: scheme.primaryContainer,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      backgroundColor: const Color(0xFFF3F4F6),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF374151)),
+      shape: const StadiumBorder(),
       side: BorderSide.none,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
+    dividerTheme: const DividerThemeData(color: Color(0xFFE5E7EB), space: 1),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-      hintStyle: const TextStyle(color: Color(0xFF8B86A0)),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE4E6EF)),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: seed, width: 1.5),
+        borderSide: const BorderSide(color: primary, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
@@ -83,11 +76,13 @@ ThemeData buildStudioTheme() {
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: scheme.error, width: 1.5),
+        borderSide: BorderSide(color: scheme.error, width: 1.4),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         textStyle: const TextStyle(fontWeight: FontWeight.w800),
@@ -95,44 +90,26 @@ ThemeData buildStudioTheme() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
+        foregroundColor: secondary,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        side: BorderSide(color: scheme.outlineVariant),
+        side: const BorderSide(color: Color(0xFFD1D5DB)),
         textStyle: const TextStyle(fontWeight: FontWeight.w800),
       ),
     ),
-    actionChipTheme: ActionChipThemeData(
-      backgroundColor: const Color(0xFFF1ECFB),
-      side: BorderSide.none,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-    ),
-    listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
-    ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 74,
-      labelTextStyle: WidgetStateProperty.resolveWith((_) => const TextStyle(fontWeight: FontWeight.w700)),
-      backgroundColor: Colors.white,
-      elevation: 0,
-      indicatorColor: scheme.primaryContainer,
-      surfaceTintColor: Colors.transparent,
-      iconTheme: WidgetStateProperty.resolveWith(
-        (states) => IconThemeData(
-          color: states.contains(WidgetState.selected) ? scheme.primary : const Color(0xFF766E8D),
-        ),
+      labelTextStyle: MaterialStateProperty.resolveWith(
+        (_) => const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
       ),
-    ),
-    dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Colors.white,
-      modalBackgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      elevation: 10,
+      height: 74,
+      indicatorColor: const Color(0xFFEFF2F7),
+      surfaceTintColor: Colors.transparent,
+      iconTheme: MaterialStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(MaterialState.selected) ? primary : secondary,
+        ),
       ),
     ),
   );

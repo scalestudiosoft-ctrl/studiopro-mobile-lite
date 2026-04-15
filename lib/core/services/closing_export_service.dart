@@ -17,19 +17,49 @@ class ClosingExportService {
     final db = AppDatabase.instance;
     final now = DateTime.now();
     final workDate = formatDateOnly(now);
+    final session = await db.firstRow(
+      'cash_sessions',
+      where: 'work_date = ? AND status = ?',
+      whereArgs: <Object?>[workDate, 'open'],
+      orderBy: 'opened_at DESC',
+    );
+
+    if (session == null) {
+      return <String, Object?>{
+        'workDate': workDate,
+        'session': null,
+        'services': <Map<String, Object?>>[],
+        'sales': <Map<String, Object?>>[],
+        'cashMovements': <Map<String, Object?>>[],
+        'salesTotal': 0.0,
+        'expensesTotal': 0.0,
+        'clientsCount': 0,
+        'servicesCount': 0,
+        'openingCash': 0.0,
+        'expectedCashClosing': 0.0,
+        'paymentTotals': <String, double>{
+          'cash_total': 0,
+          'transfer_total': 0,
+          'card_total': 0,
+          'digital_wallet_total': 0,
+          'other_total': 0,
+        },
+      };
+    }
+
+    final sessionId = '${session['id']}';
     final services = await db.queryRaw(
-      'SELECT * FROM service_records WHERE substr(performed_at, 1, 10) = ? ORDER BY performed_at ASC',
-      <Object?>[workDate],
+      'SELECT * FROM service_records WHERE cash_session_id = ? ORDER BY performed_at ASC',
+      <Object?>[sessionId],
     );
     final sales = await db.queryRaw(
-      'SELECT * FROM sales WHERE substr(sale_at, 1, 10) = ? ORDER BY sale_at ASC',
-      <Object?>[workDate],
+      'SELECT * FROM sales WHERE cash_session_id = ? ORDER BY sale_at ASC',
+      <Object?>[sessionId],
     );
     final cashMovements = await db.queryRaw(
-      'SELECT * FROM cash_movements WHERE substr(movement_at, 1, 10) = ? ORDER BY movement_at ASC',
-      <Object?>[workDate],
+      'SELECT * FROM cash_movements WHERE cash_session_id = ? ORDER BY movement_at ASC',
+      <Object?>[sessionId],
     );
-    final session = await db.firstRow('cash_sessions', where: 'work_date = ? AND status = ?', whereArgs: <Object?>[workDate, 'open']);
 
     double salesTotal = 0;
     double expensesTotal = 0;
@@ -44,7 +74,7 @@ class ClosingExportService {
     for (final sale in sales) {
       final total = (sale['net_total'] as num).toDouble();
       salesTotal += total;
-      switch ((sale['payment_method'] as String).toLowerCase()) {
+      switch ('${sale['payment_method']}'.toLowerCase()) {
         case 'efectivo':
           paymentTotals['cash_total'] = paymentTotals['cash_total']! + total;
           break;
@@ -66,7 +96,7 @@ class ClosingExportService {
 
     for (final movement in cashMovements) {
       final amount = (movement['amount'] as num).toDouble();
-      if ((movement['type'] as String).toLowerCase() == 'expense') {
+      if ('${movement['type']}'.toLowerCase() == 'expense') {
         expensesTotal += amount;
       }
     }
@@ -74,12 +104,12 @@ class ClosingExportService {
     double manualCashIncome = 0;
     for (final movement in cashMovements) {
       final amount = (movement['amount'] as num).toDouble();
-      if ((movement['type'] as String).toLowerCase() == 'income' && ('${movement['payment_method']}'.toLowerCase() == 'efectivo')) {
+      if ('${movement['type']}'.toLowerCase() == 'income' && '${movement['sale_id'] ?? ''}'.isEmpty && '${movement['payment_method']}'.toLowerCase() == 'efectivo') {
         manualCashIncome += amount;
       }
     }
 
-    final openingCash = session == null ? 0.0 : (session['opening_cash'] as num).toDouble();
+    final openingCash = (session['opening_cash'] as num).toDouble();
 
     return <String, Object?>{
       'workDate': workDate,
@@ -89,7 +119,7 @@ class ClosingExportService {
       'cashMovements': cashMovements,
       'salesTotal': salesTotal,
       'expensesTotal': expensesTotal,
-      'clientsCount': services.map((e) => e['client_id']).toSet().length,
+      'clientsCount': services.map((e) => e['client_id']).whereType<Object?>().toSet().length,
       'servicesCount': services.length,
       'openingCash': openingCash,
       'expectedCashClosing': openingCash + paymentTotals['cash_total']! + manualCashIncome - expensesTotal,
@@ -105,6 +135,9 @@ class ClosingExportService {
     final clients = await db.queryAll('clients');
     final workers = await db.queryAll('workers');
     final catalog = await db.queryAll('service_catalog', orderBy: 'name ASC');
+    final pendingAppointments = await db.queryRaw(
+      "SELECT * FROM appointments WHERE status NOT IN ('finalizado', 'cancelado') ORDER BY scheduled_at ASC",
+    );
     final businessRows = await db.queryAll('business_profile');
     if (businessRows.isEmpty) {
       throw StateError('No existe perfil del negocio configurado.');
@@ -113,6 +146,14 @@ class ClosingExportService {
     final services = summary['services'] as List<Map<String, Object?>>;
     final sales = summary['sales'] as List<Map<String, Object?>>;
     final cashMovements = summary['cashMovements'] as List<Map<String, Object?>>;
+    final exportedCashMovements = cashMovements.where((movement) {
+      final type = '${movement['type'] ?? ''}'.toLowerCase();
+      final saleId = '${movement['sale_id'] ?? ''}'.trim();
+      if (type == 'income' && saleId.isNotEmpty) {
+        return false;
+      }
+      return true;
+    }).toList();
     if (services.isEmpty || sales.isEmpty) {
       throw StateError('No puedes cerrar el día sin servicios y ventas registradas.');
     }
@@ -144,6 +185,7 @@ class ClosingExportService {
       },
       'close_batch': <String, Object?>{
         'close_batch_id': closeBatchId,
+        'cash_session_id': session['id'],
         'work_date': workDate,
         'opened_at': session['opened_at'],
         'closed_at': now.toIso8601String(),
@@ -161,6 +203,7 @@ class ClosingExportService {
             'client_name': e['name'],
             'client_phone': e['phone'],
             'client_notes': e['notes'],
+            'birthday': e['birthday'],
           }).toList(),
       'services_catalog': catalog.map((e) => <String, Object?>{
             'service_code': e['code'],
@@ -170,32 +213,59 @@ class ClosingExportService {
             'commission_percent': e['commission_percent'] ?? 0,
             'description': e['description'] ?? '',
           }).toList(),
+      'appointments_pending': pendingAppointments.map((e) => <String, Object?>{
+            'appointment_id': e['id'],
+            'scheduled_at': e['scheduled_at'],
+            'status': e['status'],
+            'client_id': e['client_id'],
+            'client_name': e['client_name'],
+            'worker_id': e['worker_id'],
+            'worker_name': e['worker_name'],
+            'service_code': e['service_code'],
+            'service_name': e['service_name'],
+            'notes': e['notes'],
+            'source': 'mobile',
+          }).toList(),
       'services_performed': services.map((e) => <String, Object?>{
             'performed_id': e['id'],
             'performed_at': e['performed_at'],
             'client_id': e['client_id'],
+            'client_name': e['client_name'],
             'worker_id': e['worker_id'],
+            'worker_name': e['worker_name'],
             'service_code': e['service_code'],
             'service_name': e['service_name'],
             'unit_price': e['unit_price'],
+            'payment_method': e['payment_method'],
             'status': e['status'],
             'notes': e['notes'],
+            'cash_session_id': e['cash_session_id'],
+            'source_appointment_id': e['source_appointment_id'],
+            'origin_type': e['origin_type'],
             'source': 'mobile',
           }).toList(),
       'sales': sales.map((e) => <String, Object?>{
             'sale_id': e['id'],
             'sale_at': e['sale_at'],
             'client_id': e['client_id'],
+            'client_name': e['client_name'],
             'worker_id': e['worker_id'],
+            'worker_name': e['worker_name'],
             'performed_id': e['service_record_id'],
+            'service_code': e['service_code'],
+            'service_name': e['service_name'],
             'gross_total': e['net_total'],
             'discount_total': 0,
             'net_total': e['net_total'],
             'payment_method': e['payment_method'],
             'payment_status': e['payment_status'],
+            'cash_session_id': e['cash_session_id'],
+            'source_appointment_id': e['source_appointment_id'],
+            'origin_type': e['origin_type'],
+            'sale_type': 'service',
             'source': 'mobile',
           }).toList(),
-      'cash_movements': cashMovements.map((e) => <String, Object?>{
+      'cash_movements': exportedCashMovements.map((e) => <String, Object?>{
             'movement_id': e['id'],
             'movement_at': e['movement_at'],
             'type': e['type'],
@@ -209,6 +279,9 @@ class ClosingExportService {
             'worker_name': e['worker_name'],
             'service_code': e['service_code'],
             'service_name': e['service_name'],
+            'cash_session_id': e['cash_session_id'],
+            'source_appointment_id': e['source_appointment_id'],
+            'origin_type': e['origin_type'],
             'notes': e['notes'],
           }).toList(),
       'daily_summary': <String, Object?>{

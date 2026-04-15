@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Studio Pro Android APK
+    name: Studio Pro Android 2.6.0
     environment:
       flutter: stable
     scripts:
@@ -12,11 +12,19 @@ workflows:
           if [ ! -f android/app/build.gradle ] && [ ! -f android/app/build.gradle.kts ]; then
             flutter create . --platforms=android
           fi
+      - name: Force Android app label
+        script: |
+          if [ -f android/app/src/main/AndroidManifest.xml ]; then
+            sed -i.bak 's/android:label="[^"]*"/android:label="Studio Pro"/' android/app/src/main/AndroidManifest.xml || true
+          fi
       - name: Generate launcher icon
         script: |
           dart run flutter_launcher_icons
       - name: Build debug APK
         script: |
           flutter build apk --debug
+          if [ -f build/app/outputs/flutter-apk/app-debug.apk ]; then
+            mv build/app/outputs/flutter-apk/app-debug.apk "build/app/outputs/flutter-apk/Studio Pro 2.6.0.apk"
+          fi
     artifacts:
       - build/app/outputs/flutter-apk/*.apk

@@ -17,16 +17,13 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(title),
         actions: <Widget>[
           ...?actions,
           PopupMenuButton<String>(
             tooltip: 'Atajos',
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            position: PopupMenuPosition.under,
             onSelected: (value) {
               switch (value) {
                 case 'clients':
@@ -54,44 +51,22 @@ class AppShell extends StatelessWidget {
               PopupMenuItem<String>(value: 'exports', child: Text('Historial de cierres')),
               PopupMenuItem<String>(value: 'settings', child: Text('Configuración')),
             ],
-            icon: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE8E3F3)),
-              ),
-              child: const Icon(Icons.tune_rounded),
-            ),
+            icon: const Icon(Icons.more_vert),
           ),
         ],
       ),
       body: SafeArea(child: body),
       floatingActionButton: floatingActionButton,
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: theme.dividerColor)),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              blurRadius: 20,
-              offset: Offset(0, -2),
-              color: Color(0x12000000),
-            ),
-          ],
-        ),
-        child: NavigationBar(
-          selectedIndex: _selectedIndex(context),
-          onDestinationSelected: (index) => _onNavigate(context, index),
-          destinations: const <NavigationDestination>[
-            NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Inicio'),
-            NavigationDestination(icon: Icon(Icons.event_note_outlined), selectedIcon: Icon(Icons.event_note_rounded), label: 'Agenda'),
-            NavigationDestination(icon: Icon(Icons.content_cut_outlined), selectedIcon: Icon(Icons.content_cut_rounded), label: 'Servicios'),
-            NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments_rounded), label: 'Caja'),
-            NavigationDestination(icon: Icon(Icons.task_alt_outlined), selectedIcon: Icon(Icons.task_alt_rounded), label: 'Cierre'),
-          ],
-        ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex(context),
+        onDestinationSelected: (index) => _onNavigate(context, index),
+        destinations: const <NavigationDestination>[
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
+          NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'Agenda'),
+          NavigationDestination(icon: Icon(Icons.content_cut_outlined), label: 'Servicios'),
+          NavigationDestination(icon: Icon(Icons.payments_outlined), label: 'Caja'),
+          NavigationDestination(icon: Icon(Icons.task_alt_outlined), label: 'Cierre'),
+        ],
       ),
     );
   }

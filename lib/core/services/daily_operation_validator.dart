@@ -46,14 +46,21 @@ class DailyOperationValidator {
       whereArgs: <Object?>[workDate, 'open'],
       orderBy: 'opened_at DESC',
     );
-    final services = await db.queryRaw(
-      'SELECT COUNT(*) AS total FROM service_records WHERE substr(performed_at, 1, 10) = ?',
-      <Object?>[workDate],
-    );
-    final sales = await db.queryRaw(
-      'SELECT COUNT(*) AS total FROM sales WHERE substr(sale_at, 1, 10) = ?',
-      <Object?>[workDate],
-    );
+
+    int servicesCount = 0;
+    int salesCount = 0;
+    if (openSession != null) {
+      final services = await db.queryRaw(
+        'SELECT COUNT(*) AS total FROM service_records WHERE cash_session_id = ?',
+        <Object?>[openSession['id']],
+      );
+      final sales = await db.queryRaw(
+        'SELECT COUNT(*) AS total FROM sales WHERE cash_session_id = ?',
+        <Object?>[openSession['id']],
+      );
+      servicesCount = ((services.first['total'] as num?) ?? 0).toInt();
+      salesCount = ((sales.first['total'] as num?) ?? 0).toInt();
+    }
 
     final blocking = <String>[];
     final warnings = <String>[];
@@ -63,8 +70,6 @@ class DailyOperationValidator {
     final hasClients = clients.isNotEmpty;
     final hasCatalog = catalog.isNotEmpty;
     final hasOpenSession = openSession != null;
-    final servicesCount = ((services.first['total'] as num?) ?? 0).toInt();
-    final salesCount = ((sales.first['total'] as num?) ?? 0).toInt();
 
     if (!hasBusiness) {
       blocking.add('Configura el negocio antes de operar o exportar.');
@@ -82,10 +87,10 @@ class DailyOperationValidator {
       blocking.add('Abre la caja del día antes de registrar servicios o cerrar el día.');
     }
     if (hasOpenSession && servicesCount == 0) {
-      warnings.add('No hay servicios registrados para este día.');
+      warnings.add('No hay servicios registrados en la caja actual.');
     }
     if (hasOpenSession && salesCount == 0) {
-      warnings.add('No hay ventas registradas para este día.');
+      warnings.add('No hay ventas registradas en la caja actual.');
     }
 
     return DailyValidationResult(
