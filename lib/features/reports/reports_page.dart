@@ -202,7 +202,7 @@ class _ReportsPageState extends State<ReportsPage> {
                           child: OutlinedButton.icon(
                             onPressed: _pickFromDate,
                             icon: const Icon(Icons.calendar_month_rounded),
-                            label: Text('Desde ${formatShortDate(_fromDate)}'),
+                            label: Text('Desde\n${formatShortDate(_fromDate)}'),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -210,7 +210,7 @@ class _ReportsPageState extends State<ReportsPage> {
                           child: OutlinedButton.icon(
                             onPressed: _pickToDate,
                             icon: const Icon(Icons.event_available_rounded),
-                            label: Text('Hasta ${formatShortDate(_toDate)}'),
+                            label: Text('Hasta\n${formatShortDate(_toDate)}'),
                           ),
                         ),
                       ],
@@ -226,33 +226,55 @@ class _ReportsPageState extends State<ReportsPage> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...<Widget>[
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.28,
+              Row(
                 children: <Widget>[
-                  InfoCard(
-                    title: 'Ventas del rango',
-                    value: copCurrency.format(_salesTotal),
-                    subtitle: 'Total vendido en el periodo',
+                  Expanded(
+                    child: SizedBox(
+                      height: 158,
+                      child: InfoCard(
+                        title: 'Ventas del rango',
+                        value: formatCopCompact(_salesTotal),
+                        subtitle: 'Total vendido',
+                      ),
+                    ),
                   ),
-                  InfoCard(
-                    title: 'Facturas registradas',
-                    value: '$_salesCount',
-                    subtitle: 'Cantidad de ventas cerradas',
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 158,
+                      child: InfoCard(
+                        title: 'Facturas registradas',
+                        value: '$_salesCount',
+                        subtitle: 'Ventas cerradas',
+                      ),
+                    ),
                   ),
-                  InfoCard(
-                    title: 'Ticket promedio',
-                    value: copCurrency.format(_averageTicket),
-                    subtitle: 'Promedio por factura',
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: SizedBox(
+                      height: 158,
+                      child: InfoCard(
+                        title: 'Ticket promedio',
+                        value: formatCopCompact(_averageTicket),
+                        subtitle: 'Promedio por factura',
+                      ),
+                    ),
                   ),
-                  InfoCard(
-                    title: 'Periodo',
-                    value: '${formatShortDate(_fromDate)} - ${formatShortDate(_toDate)}',
-                    subtitle: _salesCount == 0 ? 'Sin ventas en el rango' : 'Resumen listo para revisar',
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 158,
+                      child: InfoCard(
+                        title: 'Periodo',
+                        value: '${formatShortDate(_fromDate)}\na\n${formatShortDate(_toDate)}',
+                        subtitle: _salesCount == 0 ? 'Sin ventas' : 'Periodo consultado',
+                        valueMaxLines: 3,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -344,9 +366,12 @@ class _BreakdownCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          copCurrency.format(total),
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w800),
+                        Flexible(
+                          child: Text(
+                            formatCopCompact(total),
+                            textAlign: TextAlign.right,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w800),
+                          ),
                         ),
                       ],
                     ),
@@ -395,9 +420,12 @@ class _SaleRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                copCurrency.format(total),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+              Flexible(
+                child: Text(
+                  formatCopCompact(total),
+                  textAlign: TextAlign.right,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                ),
               ),
             ],
           ),
