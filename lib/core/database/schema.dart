@@ -60,7 +60,12 @@ const List<String> appSchema = <String>[
     service_name TEXT,
     scheduled_at TEXT NOT NULL,
     status TEXT NOT NULL,
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT '',
+    origin_type TEXT NOT NULL DEFAULT 'manual_agenda',
+    origin_device_id TEXT NOT NULL DEFAULT '',
+    restored_from_sale_id TEXT
   )
   ''',
   '''
@@ -169,6 +174,11 @@ const List<String> appSchema = <String>[
   "ALTER TABLE appointments ADD COLUMN worker_name TEXT",
   "ALTER TABLE appointments ADD COLUMN service_code TEXT",
   "ALTER TABLE appointments ADD COLUMN service_name TEXT",
+  "ALTER TABLE appointments ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE appointments ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE appointments ADD COLUMN origin_type TEXT NOT NULL DEFAULT 'manual_agenda'",
+  "ALTER TABLE appointments ADD COLUMN origin_device_id TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE appointments ADD COLUMN restored_from_sale_id TEXT",
   "ALTER TABLE service_catalog ADD COLUMN duration_minutes INTEGER NOT NULL DEFAULT 45",
   "ALTER TABLE service_catalog ADD COLUMN commission_percent REAL NOT NULL DEFAULT 0",
   "ALTER TABLE service_catalog ADD COLUMN description TEXT NOT NULL DEFAULT ''",
@@ -196,4 +206,11 @@ const List<String> appSchema = <String>[
   "ALTER TABLE cash_movements ADD COLUMN origin_type TEXT NOT NULL DEFAULT 'manual'",
   "ALTER TABLE daily_closings ADD COLUMN closed_by TEXT NOT NULL DEFAULT 'mobile_user'",
   "ALTER TABLE daily_closings ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+];
+
+
+const List<String> appIndexes = <String>[
+  "CREATE INDEX IF NOT EXISTS idx_appointments_status_scheduled_at ON appointments(status, scheduled_at)",
+  "CREATE INDEX IF NOT EXISTS idx_sales_cash_session_sale_at ON sales(cash_session_id, sale_at)",
+  "CREATE INDEX IF NOT EXISTS idx_service_records_cash_session_performed_at ON service_records(cash_session_id, performed_at)",
 ];

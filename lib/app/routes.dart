@@ -8,6 +8,7 @@ import '../features/clients/clients_page.dart';
 import '../features/closing/closing_page.dart';
 import '../features/exports/exports_page.dart';
 import '../features/home/home_page.dart';
+import '../features/reports/reports_page.dart';
 import '../features/services/new_service_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/workers/workers_page.dart';
@@ -27,6 +28,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/cash', builder: (context, state) => const CashPage()),
     GoRoute(path: '/closing', builder: (context, state) => const ClosingPage()),
     GoRoute(path: '/exports', builder: (context, state) => const ExportsPage()),
+    GoRoute(path: '/reports', builder: (context, state) => const ReportsPage()),
     GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
   ],
 );

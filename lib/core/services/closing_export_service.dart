@@ -13,6 +13,61 @@ import '../utils/formatters.dart';
 class ClosingExportService {
   const ClosingExportService();
 
+  List<Map<String, Object?>> _dedupePendingAppointments(List<Map<String, Object?>> rows) {
+    final uniqueById = <String, Map<String, Object?>>{};
+    final uniqueByLogicalKey = <String, Map<String, Object?>>{};
+
+    for (final row in rows) {
+      final appointmentId = '${row['id'] ?? ''}'.trim();
+      final scheduledAt = '${row['scheduled_at'] ?? ''}'.trim();
+      final clientId = '${row['client_id'] ?? ''}'.trim();
+      final workerId = '${row['worker_id'] ?? ''}'.trim();
+      final serviceCode = '${row['service_code'] ?? ''}'.trim();
+      final status = '${row['status'] ?? ''}'.trim();
+      final updatedAt = '${row['updated_at'] ?? row['scheduled_at'] ?? ''}'.trim();
+      final logicalKey = [clientId, workerId, serviceCode, scheduledAt, status].join('|');
+
+      final existingById = appointmentId.isEmpty ? null : uniqueById[appointmentId];
+      if (existingById == null || _isRowNewer(row, existingById)) {
+        if (appointmentId.isNotEmpty) {
+          uniqueById[appointmentId] = row;
+        }
+      }
+
+      final existingByLogicalKey = uniqueByLogicalKey[logicalKey];
+      if (existingByLogicalKey == null || updatedAt.compareTo('${existingByLogicalKey['updated_at'] ?? existingByLogicalKey['scheduled_at'] ?? ''}') > 0) {
+        uniqueByLogicalKey[logicalKey] = row;
+      }
+    }
+
+    final merged = <Map<String, Object?>>[];
+    final usedIds = <String>{};
+    for (final row in uniqueByLogicalKey.values) {
+      final appointmentId = '${row['id'] ?? ''}'.trim();
+      if (appointmentId.isNotEmpty) {
+        final byId = uniqueById[appointmentId] ?? row;
+        merged.add(byId);
+        usedIds.add(appointmentId);
+      } else {
+        merged.add(row);
+      }
+    }
+    for (final entry in uniqueById.entries) {
+      if (!usedIds.contains(entry.key)) {
+        merged.add(entry.value);
+      }
+    }
+
+    merged.sort((a, b) => '${a['scheduled_at'] ?? ''}'.compareTo('${b['scheduled_at'] ?? ''}'));
+    return merged;
+  }
+
+  bool _isRowNewer(Map<String, Object?> current, Map<String, Object?> previous) {
+    final currentUpdated = '${current['updated_at'] ?? current['scheduled_at'] ?? ''}';
+    final previousUpdated = '${previous['updated_at'] ?? previous['scheduled_at'] ?? ''}';
+    return currentUpdated.compareTo(previousUpdated) >= 0;
+  }
+
   Future<Map<String, Object?>> buildTodaySummary() async {
     final db = AppDatabase.instance;
     final now = DateTime.now();
@@ -135,9 +190,10 @@ class ClosingExportService {
     final clients = await db.queryAll('clients');
     final workers = await db.queryAll('workers');
     final catalog = await db.queryAll('service_catalog', orderBy: 'name ASC');
-    final pendingAppointments = await db.queryRaw(
+    final rawPendingAppointments = await db.queryRaw(
       "SELECT * FROM appointments WHERE status NOT IN ('finalizado', 'cancelado') ORDER BY scheduled_at ASC",
     );
+    final pendingAppointments = _dedupePendingAppointments(rawPendingAppointments);
     final businessRows = await db.queryAll('business_profile');
     if (businessRows.isEmpty) {
       throw StateError('No existe perfil del negocio configurado.');
@@ -172,6 +228,7 @@ class ClosingExportService {
         'exported_at': now.toIso8601String(),
         'export_channel': 'manual_share',
         'file_name': fileName,
+        'appointments_pending_mode': 'snapshot',
       },
       'business': <String, Object?>{
         'business_id': business['business_id'],
@@ -213,6 +270,13 @@ class ClosingExportService {
             'commission_percent': e['commission_percent'] ?? 0,
             'description': e['description'] ?? '',
           }).toList(),
+      'appointments_pending_meta': <String, Object?>{
+        'mode': 'snapshot',
+        'record_count': pendingAppointments.length,
+        'exported_at': now.toIso8601String(),
+        'device_id': '${business['business_id']}-android',
+        'close_batch_id': closeBatchId,
+      },
       'appointments_pending': pendingAppointments.map((e) => <String, Object?>{
             'appointment_id': e['id'],
             'scheduled_at': e['scheduled_at'],
@@ -224,6 +288,11 @@ class ClosingExportService {
             'service_code': e['service_code'],
             'service_name': e['service_name'],
             'notes': e['notes'],
+            'created_at': e['created_at'],
+            'updated_at': e['updated_at'],
+            'origin_type': e['origin_type'],
+            'origin_device_id': e['origin_device_id'],
+            'restored_from_sale_id': e['restored_from_sale_id'],
             'source': 'mobile',
           }).toList(),
       'services_performed': services.map((e) => <String, Object?>{

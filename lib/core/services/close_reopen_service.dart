@@ -169,6 +169,11 @@ class CloseReopenService {
             'scheduled_at': data['scheduled_at'],
             'status': data['status'] ?? 'pendiente',
             'notes': data['notes'] ?? '',
+            'created_at': data['created_at'] ?? data['scheduled_at'] ?? '',
+            'updated_at': data['updated_at'] ?? data['scheduled_at'] ?? '',
+            'origin_type': data['origin_type'] ?? 'manual_agenda',
+            'origin_device_id': data['origin_device_id'] ?? 'mobile_import',
+            'restored_from_sale_id': data['restored_from_sale_id'],
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );

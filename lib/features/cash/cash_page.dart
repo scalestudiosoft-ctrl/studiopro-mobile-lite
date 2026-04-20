@@ -290,6 +290,7 @@ class _CashPageState extends State<CashPage> {
           'service_code': service['code'],
           'service_name': service['name'],
           'notes': _saleNotesController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
         whereArgs: <Object?>[_appointmentId],
@@ -339,7 +340,23 @@ class _CashPageState extends State<CashPage> {
     final saleId = '${sale['id']}';
     final serviceRecordId = '${sale['service_record_id'] ?? ''}';
     final appointmentId = '${sale['source_appointment_id'] ?? ''}'.trim();
-    final saleAt = DateTime.tryParse('${sale['sale_at'] ?? ''}') ?? DateTime.now();
+    final existingAppointment = appointmentId.isEmpty
+        ? null
+        : await db.firstRow('appointments', where: 'id = ?', whereArgs: <Object?>[appointmentId]);
+    final restoredAt = existingAppointment == null
+        ? DateTime.tryParse('${sale['sale_at'] ?? ''}') ?? DateTime.now()
+        : DateTime.tryParse('${existingAppointment['scheduled_at'] ?? ''}') ??
+            DateTime.tryParse('${sale['sale_at'] ?? ''}') ??
+            DateTime.now();
+    final restoredCreatedAt = existingAppointment == null
+        ? restoredAt.toIso8601String()
+        : '${existingAppointment['created_at'] ?? ''}'.trim().isEmpty
+            ? restoredAt.toIso8601String()
+            : '${existingAppointment['created_at']}';
+    final restoredNotesPrefix = '${existingAppointment?['notes'] ?? ''}'.trim();
+    final restoredNotes = restoredNotesPrefix.isEmpty
+        ? 'Restaurada desde factura eliminada'
+        : '$restoredNotesPrefix | Restaurada desde factura eliminada';
 
     await db.executeBatch((batch) async {
       batch.delete('cash_movements', where: 'sale_id = ?', whereArgs: <Object?>[saleId]);
@@ -358,9 +375,14 @@ class _CashPageState extends State<CashPage> {
             'worker_name': sale['worker_name'],
             'service_code': sale['service_code'],
             'service_name': sale['service_name'],
-            'scheduled_at': saleAt.toIso8601String(),
+            'scheduled_at': restoredAt.toIso8601String(),
             'status': 'pendiente',
-            'notes': 'Restaurada desde factura eliminada',
+            'notes': restoredNotes,
+            'created_at': restoredCreatedAt,
+            'updated_at': DateTime.now().toIso8601String(),
+            'origin_type': 'restored_from_sale_delete',
+            'origin_device_id': 'mobile_local',
+            'restored_from_sale_id': saleId,
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );

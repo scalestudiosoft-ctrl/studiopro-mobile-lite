@@ -142,6 +142,13 @@ class _HomePageState extends State<HomePage> {
         onTap: () => context.push('/exports'),
       ),
       ModuleTile(
+        title: 'Informes',
+        subtitle: 'Ventas por fecha y resumen comercial',
+        icon: Icons.insights_rounded,
+        tint: const Color(0xFF059669),
+        onTap: () => context.push('/reports'),
+      ),
+      ModuleTile(
         title: 'Configurar',
         subtitle: 'Negocio y dispositivo',
         icon: Icons.settings_rounded,

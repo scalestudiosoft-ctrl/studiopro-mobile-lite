@@ -9,4 +9,11 @@ Future<void> runMigrations(Database db) async {
       // Ignora ALTER/CREATE repetidos para mantener la app ligera y tolerante.
     }
   }
+  for (final statement in appIndexes) {
+    try {
+      await db.execute(statement);
+    } catch (_) {
+      // Ignora CREATE INDEX repetidos para mantener la app ligera y tolerante.
+    }
+  }
 }

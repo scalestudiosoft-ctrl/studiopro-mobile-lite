@@ -139,6 +139,7 @@ class _AgendaPageState extends State<AgendaPage> {
           break;
         }
       }
+      final nowIso = DateTime.now().toIso8601String();
       await AppDatabase.instance.insert('appointments', <String, Object?>{
         'id': 'APT-${const Uuid().v4()}',
         'client_id': client['id'],
@@ -150,6 +151,10 @@ class _AgendaPageState extends State<AgendaPage> {
         'scheduled_at': _scheduledAt.toIso8601String(),
         'status': 'pendiente',
         'notes': _notesController.text.trim(),
+        'created_at': nowIso,
+        'updated_at': nowIso,
+        'origin_type': 'manual_agenda',
+        'origin_device_id': 'mobile_local',
       });
       _notesController.clear();
       setState(() {
@@ -168,7 +173,7 @@ class _AgendaPageState extends State<AgendaPage> {
   Future<void> _updateStatus(Map<String, Object?> row, String newStatus) async {
     await AppDatabase.instance.update(
       'appointments',
-      <String, Object?>{'status': newStatus},
+      <String, Object?>{'status': newStatus, 'updated_at': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: <Object?>[row['id']],
     );
@@ -260,6 +265,7 @@ class _AgendaPageState extends State<AgendaPage> {
         'service_name': service?['name'],
         'scheduled_at': scheduledAt.toIso8601String(),
         'notes': notesController.text.trim(),
+        'updated_at': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: <Object?>[row['id']],

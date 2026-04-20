@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Studio Pro Android 2.6.0
+    name: Studio Pro Android 2.6.2
     environment:
       flutter: stable
     scripts:
@@ -24,7 +24,7 @@ workflows:
         script: |
           flutter build apk --debug
           if [ -f build/app/outputs/flutter-apk/app-debug.apk ]; then
-            mv build/app/outputs/flutter-apk/app-debug.apk "build/app/outputs/flutter-apk/Studio Pro 2.6.0.apk"
+            mv build/app/outputs/flutter-apk/app-debug.apk "build/app/outputs/flutter-apk/Studio Pro 2.6.2.apk"
           fi
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
