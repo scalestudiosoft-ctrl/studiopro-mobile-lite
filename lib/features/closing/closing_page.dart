@@ -51,7 +51,7 @@ class _ClosingPageState extends State<ClosingPage> {
   }
 
   Future<void> _exportOnly() async {
-    final confirm = await _confirmAction('Generar JSON', 'Se va a cerrar la caja del día y generar el archivo JSON.');
+    final confirm = await _confirmAction('Generar ventas móviles', 'Se va a generar el archivo JSON de ventas móviles para enviarlo al escritorio. La caja del celular seguirá abierta.');
     if (confirm != true) return;
     setState(() => _busy = true);
     try {
@@ -71,7 +71,7 @@ class _ClosingPageState extends State<ClosingPage> {
   }
 
   Future<void> _share() async {
-    final confirm = await _confirmAction('Compartir cierre', 'Se va a cerrar la caja del día, generar el JSON y abrir el menú nativo para compartir.');
+    final confirm = await _confirmAction('Compartir ventas móviles', 'Se va a generar el JSON de ventas móviles y abrir el menú nativo para compartir. La caja del celular seguirá abierta.');
     if (confirm != true) return;
     setState(() => _busy = true);
     try {
@@ -132,7 +132,7 @@ class _ClosingPageState extends State<ClosingPage> {
     }
 
     return AppShell(
-      title: 'Cierre del día',
+      title: 'Ventas móviles',
       actions: <Widget>[
         TextButton(onPressed: () => context.go('/exports'), child: const Text('Historial')),
       ],
@@ -141,7 +141,7 @@ class _ClosingPageState extends State<ClosingPage> {
         children: <Widget>[
           Text('Resumen de ${formatShortDate(DateTime.now())}', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          const Text('Verifica el resultado del día y luego genera el JSON para enviarlo al escritorio.'),
+          const Text('Verifica las ventas del día y luego genera el JSON de ventas móviles para enviarlo al escritorio.'),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -184,7 +184,7 @@ class _ClosingPageState extends State<ClosingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Revisa antes de exportar', style: Theme.of(context).textTheme.titleSmall),
+                    Text('Revisa antes de enviar', style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: 8),
                     ...warnings.map((issue) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
@@ -226,15 +226,15 @@ class _ClosingPageState extends State<ClosingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Observaciones del cierre', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Observaciones de ventas móviles', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
                   TextField(controller: _notesController, maxLines: 3, decoration: const InputDecoration(labelText: 'Notas del día')), 
                   const SizedBox(height: 16),
                   Row(
                     children: <Widget>[
-                      Expanded(child: FilledButton(onPressed: _busy || blockingIssues.isNotEmpty ? null : _exportOnly, child: Text(_busy ? 'Procesando...' : 'Generar JSON'))),
+                      Expanded(child: FilledButton(onPressed: _busy || blockingIssues.isNotEmpty ? null : _exportOnly, child: Text(_busy ? 'Procesando...' : 'Generar ventas'))),
                       const SizedBox(width: 12),
-                      Expanded(child: OutlinedButton(onPressed: _busy || blockingIssues.isNotEmpty ? null : _share, child: const Text('Compartir'))),
+                      Expanded(child: OutlinedButton(onPressed: _busy || blockingIssues.isNotEmpty ? null : _share, child: const Text('Compartir ventas'))),
                     ],
                   ),
                 ],

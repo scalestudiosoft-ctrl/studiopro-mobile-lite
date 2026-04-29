@@ -269,7 +269,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ActionChip(label: const Text('Profesionales'), onPressed: () => context.push('/workers')),
                       ActionChip(label: const Text('Clientes'), onPressed: () => context.push('/clients')),
                       ActionChip(label: const Text('Catálogo'), onPressed: () => context.push('/catalog')),
-                      ActionChip(label: const Text('Historial de cierres'), onPressed: () => context.push('/exports')),
+                      ActionChip(label: const Text('Ventas móviles'), onPressed: () => context.push('/exports')),
                     ],
                   ),
                 ],

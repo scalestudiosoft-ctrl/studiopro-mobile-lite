@@ -23,20 +23,23 @@ class InfoCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(title, style: Theme.of(context).textTheme.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: 6),
-            Flexible(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  maxLines: valueMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, height: 1.05),
-                ),
-              ),
+            Text(
+              value,
+              maxLines: valueMaxLines,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    height: 1.05,
+                  ),
             ),
             if (subtitle != null) ...<Widget>[
               const SizedBox(height: 6),

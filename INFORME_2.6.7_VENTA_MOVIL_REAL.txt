@@ -1,0 +1,11 @@
+Studio Pro Mobile 2.6.7 - Venta movil real
+
+Cambios incluidos:
+- El APK genera un archivo JSON de ventas moviles, no un cierre comercial.
+- Al generar o compartir ventas moviles, la caja del celular sigue abierta.
+- El archivo generado usa nombre sp_ventas_moviles_YYYY-MM-DD.
+- El identificador del lote ahora inicia con MOBILE-SALE para evitar confusion con cierres.
+
+Notas:
+- Se mantiene el flujo offline por JSON.
+- El escritorio puede importar ventas nuevas sin depender de servidor.

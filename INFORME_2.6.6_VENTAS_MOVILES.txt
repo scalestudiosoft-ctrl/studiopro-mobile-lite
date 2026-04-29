@@ -1,0 +1,11 @@
+Studio Pro Mobile 2.6.6 - Ventas moviles
+
+Cambios incluidos:
+- El acceso del inicio ahora se llama "Ventas moviles".
+- La pantalla de cierre se presenta como generacion de ventas moviles para el escritorio.
+- El historial ahora se presenta como historial de lotes de ventas moviles.
+- Los botones principales usan textos mas claros: "Generar ventas", "Compartir ventas" e "Importar backup JSON".
+
+Notas:
+- No se cambio la estructura de base de datos ni el formato JSON.
+- La funcionalidad sigue siendo offline: el celular captura ventas y genera/comparte el JSON para aplicarlo en escritorio.

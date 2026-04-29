@@ -211,7 +211,7 @@ class ClosingExportService {
       return true;
     }).toList();
     if (services.isEmpty || sales.isEmpty) {
-      throw StateError('No puedes cerrar el día sin servicios y ventas registradas.');
+      throw StateError('No puedes generar ventas móviles sin servicios y ventas registradas.');
     }
     final paymentTotals = summary['paymentTotals'] as Map<String, double>;
     final session = summary['session'] as Map<String, Object?>?;
@@ -219,8 +219,8 @@ class ClosingExportService {
       throw StateError('No hay una caja abierta para este día.');
     }
 
-    final closeBatchId = 'CLOSE-${const Uuid().v4()}';
-    final fileName = 'sp_cierre_${workDate}_${DateTime.now().millisecondsSinceEpoch}.json';
+    final closeBatchId = 'MOBILE-SALE-${const Uuid().v4()}';
+    final fileName = 'sp_ventas_moviles_${workDate}_${DateTime.now().millisecondsSinceEpoch}.json';
     final payload = <String, Object?>{
       'schema_version': AppConstants.syncSchemaVersion,
       'source_app': <String, Object?>{'name': AppConstants.appName, 'version': AppConstants.appVersion},
@@ -376,58 +376,19 @@ class ClosingExportService {
     final file = File(p.join(exportsDir.path, fileName));
     await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
 
-    final existingClose = await db.firstRow('daily_closings', where: 'work_date = ?', whereArgs: <Object?>[workDate]);
-    if (existingClose == null) {
-      await db.insert('daily_closings', <String, Object?>{
-        'id': closeBatchId,
-        'work_date': workDate,
-        'opened_at': session['opened_at'],
-        'closed_at': now.toIso8601String(),
-        'opening_cash': summary['openingCash'],
-        'sales_total': summary['salesTotal'],
-        'expenses_total': summary['expensesTotal'],
-        'expected_cash_closing': summary['expectedCashClosing'],
-        'export_file_name': fileName,
-        'closed_by': closedBy,
-        'notes': notes,
-      });
-    } else {
-      await db.update(
-        'daily_closings',
-        <String, Object?>{
-          'closed_at': now.toIso8601String(),
-          'sales_total': summary['salesTotal'],
-          'expenses_total': summary['expensesTotal'],
-          'expected_cash_closing': summary['expectedCashClosing'],
-          'export_file_name': fileName,
-          'closed_by': closedBy,
-          'notes': notes,
-        },
-        where: 'id = ?',
-        whereArgs: <Object?>[existingClose['id']],
-      );
-    }
-
     await db.insert('export_history', <String, Object?>{
       'id': const Uuid().v4(),
       'created_at': now.toIso8601String(),
       'file_name': fileName,
       'file_path': file.path,
       'share_channel': 'local',
-      'close_id': existingClose == null ? closeBatchId : existingClose['id'],
+      'close_id': closeBatchId,
     });
-
-    await db.update(
-      'cash_sessions',
-      <String, Object?>{'status': 'closed', 'closed_at': now.toIso8601String(), 'closing_notes': notes},
-      where: 'id = ?',
-      whereArgs: <Object?>[session['id']],
-    );
     return file;
   }
 
   Future<void> shareCloseFile({String notes = '', String closedBy = 'mobile_user'}) async {
     final file = await exportTodayClose(notes: notes, closedBy: closedBy);
-    await Share.shareXFiles(<XFile>[XFile(file.path)], text: 'Cierre Studio Pro');
+    await Share.shareXFiles(<XFile>[XFile(file.path)], text: 'Ventas móviles Studio Pro');
   }
 }

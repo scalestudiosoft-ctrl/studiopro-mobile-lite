@@ -50,7 +50,7 @@ class _ExportsPageState extends State<ExportsPage> {
   Future<void> _share(Map<String, Object?> row) async {
     final path = '${row['file_path']}';
     if (!await File(path).exists()) return;
-    await Share.shareXFiles(<XFile>[XFile(path)], text: 'Cierre Studio Pro');
+    await Share.shareXFiles(<XFile>[XFile(path)], text: 'Ventas móviles Studio Pro');
   }
 
   Future<void> _importBackup() async {
@@ -69,7 +69,7 @@ class _ExportsPageState extends State<ExportsPage> {
       if (!mounted) return;
       AppSyncBus.bump();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup JSON importado. El cierre quedó reabierto para seguir operando.')),
+        const SnackBar(content: Text('Backup JSON importado. El lote de ventas quedo reabierto para seguir operando.')),
       );
       context.go('/cash');
     } catch (e) {
@@ -86,9 +86,9 @@ class _ExportsPageState extends State<ExportsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reabrir cierre'),
+        title: const Text('Reabrir lote de ventas'),
         content: const Text(
-          'Se volverá a abrir la última sesión de caja desde este JSON para que puedas corregir ventas, gastos o citas antes de exportar otra vez.',
+          'Se volverá a abrir el último lote de ventas móviles desde este JSON para que puedas corregir ventas, gastos o citas antes de enviarlo otra vez.',
         ),
         actions: <Widget>[
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
@@ -105,7 +105,7 @@ class _ExportsPageState extends State<ExportsPage> {
       if (!mounted) return;
       AppSyncBus.bump();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cierre reabierto. Ya puedes corregirlo y volver a exportar.')),
+        const SnackBar(content: Text('Lote de ventas reabierto. Ya puedes corregirlo y volver a enviarlo.')),
       );
       context.go('/cash');
     } catch (e) {
@@ -119,7 +119,7 @@ class _ExportsPageState extends State<ExportsPage> {
   @override
   Widget build(BuildContext context) {
     return AppShell(
-      title: 'Historial de cierres',
+      title: 'Ventas móviles',
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
@@ -129,14 +129,14 @@ class _ExportsPageState extends State<ExportsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Text('Último JSON exportado', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  const Text('Último JSON de ventas móviles', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                   const SizedBox(height: 8),
-                  const Text('Puedes reabrir un cierre desde aquí para corregirlo y volver a exportarlo sin abrir y cerrar caja desde cero.'),
+                  const Text('Consulta, comparte o reabre el último lote enviado al escritorio si necesitas corregir ventas antes de enviarlo otra vez.'),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: _importing ? null : _importBackup,
                     icon: const Icon(Icons.upload_file_outlined),
-                    label: Text(_importing ? 'Importando...' : 'Importar JSON backup'),
+                    label: Text(_importing ? 'Importando...' : 'Importar backup JSON'),
                   ),
                 ],
               ),
@@ -171,7 +171,7 @@ class _ExportsPageState extends State<ExportsPage> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Todavía no hay cierres exportados.'),
+                child: Text('Todavía no hay lotes de ventas móviles generados.'),
               ),
             ),
         ],

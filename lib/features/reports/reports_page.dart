@@ -230,22 +230,24 @@ class _ReportsPageState extends State<ReportsPage> {
                 children: <Widget>[
                   Expanded(
                     child: SizedBox(
-                      height: 158,
+                      height: 176,
                       child: InfoCard(
                         title: 'Ventas del rango',
                         value: formatCopCompact(_salesTotal),
-                        subtitle: 'Total vendido',
+                        subtitle: 'Total vendido en el periodo',
+                        subtitleMaxLines: 3,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: SizedBox(
-                      height: 158,
+                      height: 176,
                       child: InfoCard(
                         title: 'Facturas registradas',
                         value: '$_salesCount',
                         subtitle: 'Ventas cerradas',
+                        subtitleMaxLines: 3,
                       ),
                     ),
                   ),
@@ -256,21 +258,22 @@ class _ReportsPageState extends State<ReportsPage> {
                 children: <Widget>[
                   Expanded(
                     child: SizedBox(
-                      height: 158,
+                      height: 176,
                       child: InfoCard(
                         title: 'Ticket promedio',
                         value: formatCopCompact(_averageTicket),
                         subtitle: 'Promedio por factura',
+                        subtitleMaxLines: 3,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: SizedBox(
-                      height: 158,
+                      height: 176,
                       child: InfoCard(
                         title: 'Periodo',
-                        value: '${formatShortDate(_fromDate)}\na\n${formatShortDate(_toDate)}',
+                        value: '${formatShortDate(_fromDate)}\n-\n${formatShortDate(_toDate)}',
                         subtitle: _salesCount == 0 ? 'Sin ventas' : 'Periodo consultado',
                         valueMaxLines: 3,
                       ),
