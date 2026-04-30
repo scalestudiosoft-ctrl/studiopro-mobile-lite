@@ -1,7 +1,7 @@
-name: studio_pro
+﻿name: studio_pro
 description: Studio Pro offline para barbería, salón, spa y nails.
 publish_to: none
-version: 2.6.7+30
+version: 2.6.8+31
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -35,3 +35,4 @@ flutter_launcher_icons:
   android: true
   image_path: assets/icons/studio_pro_icon.png
   min_sdk_android: 21
+

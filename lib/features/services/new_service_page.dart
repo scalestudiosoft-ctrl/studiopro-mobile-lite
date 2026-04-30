@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../shared/widgets/app_shell.dart';
@@ -51,3 +51,4 @@ class NewServicePage extends StatelessWidget {
     );
   }
 }
+

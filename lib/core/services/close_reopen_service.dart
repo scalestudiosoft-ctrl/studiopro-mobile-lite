@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -311,3 +311,4 @@ class CloseReopenService {
     return uniqueTarget.path;
   }
 }
+

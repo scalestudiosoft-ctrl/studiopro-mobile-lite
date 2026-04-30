@@ -1,4 +1,4 @@
-# Studio Pro 2.0.0
+﻿# Studio Pro 2.0.0
 
 Versión candidata estable de la app móvil offline de Studio Pro.
 
@@ -21,3 +21,4 @@ Versión candidata estable de la app móvil offline de Studio Pro.
 3. Ejecutar `flutter pub get`
 4. Probar con `flutter run`
 5. Generar APK con `flutter build apk --release`
+

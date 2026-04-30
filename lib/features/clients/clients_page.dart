@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
@@ -289,3 +289,4 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 }
+

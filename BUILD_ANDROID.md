@@ -1,4 +1,4 @@
-# Preparación Android
+﻿# Preparación Android
 
 ## 1. Requisitos
 - Flutter estable
@@ -40,3 +40,4 @@ build/app/outputs/flutter-apk/app-release.apk
 
 ## 6. Nota importante
 Este paquete ya deja lista la lógica móvil y el contrato JSON `sp_mobile_sync_v1`, pero la compilación final del APK debe hacerse en un equipo con Flutter SDK y Android SDK instalados.
+

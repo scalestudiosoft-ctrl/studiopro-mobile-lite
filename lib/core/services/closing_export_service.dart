@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -392,3 +392,4 @@ class ClosingExportService {
     await Share.shareXFiles(<XFile>[XFile(file.path)], text: 'Ventas móviles Studio Pro');
   }
 }
+

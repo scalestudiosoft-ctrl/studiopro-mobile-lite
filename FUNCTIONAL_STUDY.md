@@ -1,4 +1,4 @@
-# Studio Pro Mobile Lite - flujo funcional esperado
+﻿# Studio Pro Mobile Lite - flujo funcional esperado
 
 ## Flujo operativo correcto
 1. Configurar negocio
@@ -48,3 +48,4 @@
 ## Objetivo de la siguiente prueba
 Validar que este flujo sí funcione de punta a punta:
 crear profesional -> crear cliente -> abrir caja -> registrar servicio -> ver venta en caja -> revisar cierre -> exportar JSON -> compartir por WhatsApp
+

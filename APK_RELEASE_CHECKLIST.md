@@ -1,4 +1,4 @@
-# Checklist de salida APK
+﻿# Checklist de salida APK
 
 ## Antes de compilar
 - Tener Flutter SDK instalado y visible en PATH
@@ -20,3 +20,4 @@
 
 ## Salida esperada
 - `build/app/outputs/flutter-apk/app-release.apk`
+

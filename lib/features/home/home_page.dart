@@ -78,13 +78,13 @@ class _HomePageState extends State<HomePage> {
   String get _segmentLabel {
     switch (_businessType) {
       case 'beauty_salon':
-        return 'SalÃ³n de belleza';
+        return 'Salón de belleza';
       case 'nails_studio':
         return 'Nails studio';
       case 'spa':
         return 'Spa';
       default:
-        return 'BarberÃ­a';
+        return 'Barbería';
     }
   }
 
@@ -94,21 +94,21 @@ class _HomePageState extends State<HomePage> {
     final moduleTiles = <Widget>[
       ModuleTile(
         title: 'Caja',
-        subtitle: _cashOpen ? 'Registrar ventas y movimientos' : 'Abrir caja y empezar el dÃ­a',
+        subtitle: _cashOpen ? 'Registrar ventas y movimientos' : 'Abrir caja y empezar el día',
         icon: Icons.point_of_sale_rounded,
         tint: const Color(0xFF0F766E),
         onTap: () => context.go('/cash'),
       ),
       ModuleTile(
         title: 'Agenda',
-        subtitle: 'Citas del dÃ­a y programaciÃ³n',
+        subtitle: 'Citas del día y programación',
         icon: Icons.event_note_rounded,
         tint: const Color(0xFF2563EB),
         onTap: () => context.go('/agenda'),
       ),
       ModuleTile(
         title: 'Servicios',
-        subtitle: 'CatÃ¡logo con precio y duraciÃ³n',
+        subtitle: 'Catálogo con precio y duración',
         icon: Icons.design_services_rounded,
         tint: const Color(0xFF7C3AED),
         onTap: () => context.go('/catalog'),
@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
       ),
       ModuleTile(
         title: 'Cierre',
-        subtitle: 'RevisiÃ³n diaria y exportaciÃ³n',
+        subtitle: 'Revisión diaria y exportación',
         icon: Icons.task_alt_rounded,
         tint: const Color(0xFFDC2626),
         onTap: () => context.go('/closing'),
@@ -204,7 +204,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '$_segmentLabel${_city.trim().isEmpty ? '' : ' â€¢ $_city'}',
+                              '$_segmentLabel${_city.trim().isEmpty ? '' : ' • $_city'}',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Colors.white.withOpacity(0.88),
                                     fontWeight: FontWeight.w600,
@@ -233,7 +233,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 18),
             Text(
-              'MÃ³dulos principales',
+              'Módulos principales',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
@@ -320,7 +320,7 @@ class _HomePageState extends State<HomePage> {
                     ...warnings.take(4).map(
                           (warning) => Padding(
                             padding: const EdgeInsets.only(bottom: 6),
-                            child: Text('â€¢ $warning'),
+                            child: Text('• $warning'),
                           ),
                         ),
                   ],
@@ -431,4 +431,5 @@ class _QuickStatCard extends StatelessWidget {
     );
   }
 }
+
 

@@ -1,4 +1,4 @@
-import '../database/app_database.dart';
+﻿import '../database/app_database.dart';
 import '../utils/formatters.dart';
 
 class DailyValidationResult {
@@ -106,3 +106,4 @@ class DailyOperationValidator {
     );
   }
 }
+

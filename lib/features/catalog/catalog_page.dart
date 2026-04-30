@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/services/app_sync_bus.dart';
@@ -287,3 +287,4 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 }
+
